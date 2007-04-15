@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.4"
+__version__ = "2.5"
 
 import time
 import sys
@@ -21,6 +21,7 @@ import os
 import popen2
 import string
 import math
+import re
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -60,7 +61,10 @@ LN_TO_LG_SCALE = 1.4426950408889634 # LN_TO_LG_SCALE * ln(x) == lg(x)
 
 try:
 	import urwid
-	from urwid.curses_display import Screen
+	try:
+		from urwid.raw_display import Screen
+	except:
+		from urwid.curses_display import Screen
 	urwid.BarGraph
 	URWID_IMPORTED = True
 	URWID_UTF8 = False
@@ -565,23 +569,24 @@ def network_feed(device,rxtx):
 	rxtx is "RX" or "TX"
 	"""
 	assert rxtx in ["RX","TX"]
+	r = re.compile( r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE )
 	
-	def networkfn(device=device,rxtx=rxtx):
+	def networkfn(devre=r,rxtx=rxtx):
 		f = open('/proc/net/dev')
-		dev_lines = f.readlines()
+		dev_lines = f.read()
 		f.close()
-		for line in dev_lines:
-			dev_pos = line.find(device+":")
-			if dev_pos == -1: continue
-			parts = line[dev_pos+len(device)+1:].split()
-			if rxtx == 'RX':
-				return long(parts[0])
-			else:
-				return long(parts[8])
-		return None
+		match = devre.search(dev_lines)
+		if not match:
+			return None
+		
+		parts = match.group(1).split()
+		if rxtx == 'RX':
+			return long(parts[0])
+		else:
+			return long(parts[8])
 		
 	return networkfn
-
+		
 def simulated_feed( data ):
 	total = 0
 	adjusted_data = [0]
@@ -816,6 +821,8 @@ class NetworkTap:
 				"interface '%s'...\n" % self.interface)
 			while self.feed() == None: 
 				time.sleep(1)
+
+
 
 def parse_args():
 	args = sys.argv[1:]
