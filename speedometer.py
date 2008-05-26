@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # speedometer.py
-# Copyright (C) 2001-2006  Ian Ward
+# Copyright (C) 2001-2008  Ian Ward
 #
 # This module is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.5"
+__version__ = "2.6"
 
 import time
 import sys
@@ -54,6 +54,11 @@ Urwid may be installed system-wide or in the same directory as speedometer.
 INITIAL_DELAY = 0.5 # seconds
 INTERVAL_DELAY = 1.0 # seconds
 
+GRAPH_MAX = 27
+GRAPH_LINES = [25,20,15,10,5]
+GRAPH_CAPTIONS = [' 1GB\n  /s', '32MB\n  /s', ' 1MB\n  /s', '32KB\n  /s', 
+	' 1KB\n  /s']
+
 try: True # old python?
 except: False, True = 0, 1
 
@@ -61,10 +66,7 @@ LN_TO_LG_SCALE = 1.4426950408889634 # LN_TO_LG_SCALE * ln(x) == lg(x)
 
 try:
 	import urwid
-	try:
-		from urwid.raw_display import Screen
-	except:
-		from urwid.curses_display import Screen
+	from urwid.curses_display import Screen
 	urwid.BarGraph
 	URWID_IMPORTED = True
 	URWID_UTF8 = False
@@ -134,12 +136,7 @@ class EndOfData(Exception):
 
 class MultiGraphDisplay:
 	def __init__(self, cols, urwid_ui):
-		if urwid_ui == "smoothed":
-			smoothed = True
-			self.palette = self.smoothed_palette
-		else:
-			smoothed = False
-			self.palette = self.blocky_palette
+		smoothed = urwid_ui == "smoothed"
 		self.displays = []
 		l = []
 		for c in cols:
@@ -158,33 +155,16 @@ class MultiGraphDisplay:
 		title = urwid.Text("Speedometer "+__version__)
 		title = urwid.AttrWrap( urwid.Filler( title ), 'title' )
 		self.top = urwid.Overlay( title, graphs,
-			('fixed left', 0), 16, ('fixed top', 0), 1 )
+			('fixed left', 5), 16, ('fixed top', 0), 1 )
 
 		self.urwid_ui = urwid_ui
 
-	blocky_palette = [
-		('background', 'dark gray', 'black'),
-		('reading', 'light gray', 'black'),
-		('1MB/s',   'dark cyan','light gray','standout'),
-		('32KB/s',  'light gray', 'dark cyan','standout'),
-		('1KB/s',   'dark blue','dark cyan','standout'),
-		('32B/s',   'light cyan','dark blue','standout'),
-		('bar:num', 'light gray', 'black' ),
-		('ca:background', 'light gray','black'),
-		('ca:c',    'yellow','black','standout'),
-		('ca:a',    'dark gray','black','standout'),
-		('ca:c:num','yellow','black','standout'),
-		('ca:a:num','dark gray','black','standout'),
-		('title',   'white', 'black','underline'),
-		('pr:n',    'white', 'dark blue'),
-		('pr:c',    'white', 'dark green','standout'),]
-	
-	smoothed_palette = [
+	palette = [
 		('background', 'dark gray', 'black'),
 		('reading', 'light gray', 'black'),
 		('bar:top', 'dark cyan', 'black' ),
 		('bar',     'black', 'dark cyan','standout'),
-		('bar:num', 'dark cyan', 'black' ),
+		('bar:num', 'white', 'black' ),
 		('ca:background', 'light gray','black'),
 		('ca:c:top','dark blue','black'),
 		('ca:c',    'black','dark blue','standout'),
@@ -287,24 +267,17 @@ class GraphDisplay:
 				{(1,0):'ca:c:top', (2,0):'ca:a:top', } )
 		else:
 			self.speed_graph = SpeedGraph([
-				('background', ' '),
-				('1MB/s', '%'),
-				('32KB/s', '#'),
-				('1KB/s', '+'),
-				('32B/s', ':'), ]
-			)
+				('background', ' '), ('bar', ' ')],
+				['background', 'bar'])
 			
 			self.cagraph = urwid.BarGraph([
 				('ca:background', ' '),
-				('ca:c','c'),
-				('ca:a','A'),]
+				('ca:c',' '),
+				('ca:a',' '),]
 			)
 		
 		self.last_reading = urwid.Text("",align="right")
-		scale = urwid.GraphVScale([
-			(15,' 1MB\n  /s'),
-			(10,'32KB\n  /s'),
-			(5,' 1KB\n  /s')], 20)
+		scale = urwid.GraphVScale(zip(GRAPH_LINES, GRAPH_CAPTIONS), GRAPH_MAX)
 		footer = self.last_reading
 		graph_cols = urwid.Columns( [('fixed', 4, scale), 
 			self.speed_graph, ('fixed', 4, self.cagraph)],
@@ -339,7 +312,7 @@ class GraphDisplay:
 		self.cagraph.set_data([
 			[speed_scale(c),0],
 			[0,speed_scale(a)],
-			], 20)
+			], GRAPH_MAX)
 		
 			
 
@@ -386,7 +359,7 @@ class SpeedGraph:
 		bar = self.bar[ -maxcol:]
 		if len(bar) < maxcol:
 			bar = [[0]]*(maxcol-len(bar)) + bar
-		return bar, 20, [15,10,5]
+		return bar, GRAPH_MAX, GRAPH_LINES
 	
 	def selectable(self):
 		return False
@@ -398,7 +371,7 @@ class SpeedGraph:
 		
 		topl = self.local_maximums(pad, left)
 		yvals = [ max(self.bar[i]) for i in topl ]
-		yvals = urwid.scale_bar_values(yvals, 20, maxrow)
+		yvals = urwid.scale_bar_values(yvals, GRAPH_MAX, maxrow)
 		
 		graphtop = self.graph
 		for i,y in zip(topl, yvals):
@@ -447,17 +420,7 @@ class SpeedGraph:
 		
 	def append_log(self, s):
 		x = speed_scale(s)
-		o = []
-		if self.smoothed:
-			o.append(x)
-		else:
-			prev = 20
-			for segment in [15,10,5,0]:
-				if x>segment:
-					o.append( min(prev, x) )
-				else:
-					o.append(0)
-				prev = segment
+		o = [x]
 		self.bar = self.bar[-300:] + [o]
 		self.log = self.log[-300:] + [s]
 
@@ -465,7 +428,7 @@ class SpeedGraph:
 def speed_scale( s ):
 	if s <= 0: return 0
 	x = (math.log( s ) * LN_TO_LG_SCALE )
-	x = min( 20, max( 0, x-5 ))
+	x = min(GRAPH_MAX, max( 0, x-5 ))
 	return x
 
 
@@ -513,33 +476,30 @@ def graphic_speed( speed ):
 	
 	if speed == None: speed = 0
 	
-	speed_val = [	0,    # KB/s
-		2,	6,	13,	32,	76,	181,	431,	1024,
-		2435,	5793,	13777,	32768,	77936,	185364,	440871,	1048576,
-		2493948,	5931642,	14107901,	33554432 ]
+	speed_val = [0]+[int(2**(x*5.0/3)) for x in range(20)]
 	
 	speed_gfx = [
 		r"\                    ",
 		r".\                   ",
 		r"..\                  ",
 		r"...\                 ",
-		r"....\                ",
-		r"....:\               ",
-		r"....::\              ",
-		r"....:::|             ",
-		r"....::::|            ",
-		r"....::::+|           ",
-		r"....::::++|          ",
-		r"....::::+++|         ",
-		r"....::::++++|        ",
-		r"....::::++++#|       ",
-		r"....::::++++##/      ",
-		r"....::::++++###/     ",
-		r"....::::++++####/    ",
-		r"....::::++++####%/   ",
-		r"....::::++++####%%/  ",
-		r"....::::++++####%%%/ ",
-		r"....::::++++####%%%%/",
+		r"...:\                ",
+		r"...::\               ",
+		r"...:::\              ",
+		r"...:::+|             ",
+		r"...:::++|            ",
+		r"...:::+++|           ",
+		r"...:::+++#|          ",
+		r"...:::+++##|         ",
+		r"...:::+++###|        ",
+		r"...:::+++###%|       ",
+		r"...:::+++###%%/      ",
+		r"...:::+++###%%%/     ",
+		r"...:::+++###%%%//    ",
+		r"...:::+++###%%%///   ",
+		r"...:::+++###%%%////  ",
+		r"...:::+++###%%%///// ",
+		r"...:::+++###%%%//////",
 		]
 		
 	
@@ -829,8 +789,10 @@ def parse_args():
 	tap = None
 	if URWID_UTF8:
 		urwid_ui = 'smoothed'
-	else:
+	elif URWID_IMPORTED:
 		urwid_ui = 'blocky'
+	else:
+		urwid_ui = False
 	zero_files = False
 	interval_set = False
 	cols = []
@@ -861,7 +823,10 @@ def parse_args():
 			while i < len(args) and args[i][:1] != "-":
 				simargs.append( args[i] )
 				i += 1
-			tap.feed = simulated_feed( simargs )
+			simulate = tap
+			if not simulate:
+				simulate = taps[-1]
+			simulate.feed = simulated_feed( simargs )
 			global time
 			time = SimulatedTime( time.time() )
 			continue
@@ -915,11 +880,11 @@ def parse_args():
 
 	if urwid_ui and not URWID_IMPORTED:
 		raise ArgumentError
-
-	if not urwid_ui and (taps or cols):
+	
+	push_tap(tap, taps)
+	if not urwid_ui and (len(taps)>1 or cols):
 		raise ArgumentError
 			
-	push_tap(tap, taps)
 	if not taps:
 		raise ArgumentError
 	cols.append(taps)
@@ -963,10 +928,10 @@ def curve( spd ):
 	
 
 def show( s, c, a, out = sys.stdout.write ):
-	out( "[.]" + readable_speed(s) )
-	out( " [c]" + readable_speed(c) )
-	out( " [A]" + readable_speed(a) )
-	out( " (" + graphic_speed(s)+")" )
+	out( readable_speed(s) )
+	out( "  c:" + readable_speed(c) )
+	out( "  A:" + readable_speed(a) )
+	out( "  (" + graphic_speed(s)+")" )
 	out('\n')	
 
 
@@ -1001,5 +966,8 @@ def wait_all(cols):
 
 	
 if __name__ == "__main__":
-	console()
+	try:
+		console()
+	except KeyboardInterrupt, err:
+		pass
 	
