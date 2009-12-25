@@ -40,6 +40,7 @@ Options:
   -p                          use plain-text display (one tap only)
   -b                          use old blocky display instead of smoothed
                               display even when UTF-8 encoding is detected
+  -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
                               instead of waiting for them to be created
 """
@@ -135,7 +136,7 @@ class EndOfData(Exception):
 	pass
 
 class MultiGraphDisplay:
-	def __init__(self, cols, urwid_ui):
+	def __init__(self, cols, urwid_ui, exit_on_complete):
 		smoothed = urwid_ui == "smoothed"
 		self.displays = []
 		l = []
@@ -158,6 +159,7 @@ class MultiGraphDisplay:
 			('fixed left', 5), 16, ('fixed top', 0), 1 )
 
 		self.urwid_ui = urwid_ui
+		self.exit_on_complete = exit_on_complete
 
 	palette = [
 		('background', 'dark gray', 'black'),
@@ -188,7 +190,8 @@ class MultiGraphDisplay:
 	
 	def run(self):
 		try:
-			self.update_readings()
+			pending = self.update_readings()
+			if self.exit_on_complete and pending == 0: return
 		except EndOfData:
 			return
 		time.sleep(INITIAL_DELAY)
@@ -198,7 +201,8 @@ class MultiGraphDisplay:
 		while True:
 			if not resizing:
 				try:
-					self.update_readings()
+					pending = self.update_readings()
+					if self.exit_on_complete and pending == 0: return
 				except EndOfData:
 					self.end_of_data()
 					return
@@ -219,8 +223,10 @@ class MultiGraphDisplay:
 					return
 	
 	def update_readings(self):
+		pending = 0
 		for d in self.displays:
-			d.update_readings()
+			if d.update_readings(): pending += 1
+		return pending
 	
 	def end_of_data(self):
 		# pause for taking screenshot of simulated data
@@ -335,11 +341,12 @@ class GraphDisplayProgress(GraphDisplay):
 	def update_readings(self):
 		GraphDisplay.update_readings(self)
 
-		self.pb.set_completion(self.spd.progress()[0])
+		current, expected = self.spd.progress()
+		self.pb.set_completion(current)
 		e = self.spd.completion_estimate()
-		if e is None:
-			return
-		self.est.set_text(readable_time(e,10))
+		if e is not None:
+			self.est.set_text(readable_time(e,10))
+		return current < expected
 
 class SpeedGraph:
 	def __init__(self, attlist, hatt=None, satt=None ):
@@ -696,7 +703,7 @@ class ArgumentError(Exception):
 def console():
 	"""Console mode"""
 	try:
-		cols, urwid_ui, zero_files = parse_args()
+		cols, urwid_ui, zero_files, exit_on_complete = parse_args()
 	except ArgumentError:
 		sys.stderr.write(__usage__)
 		if not URWID_IMPORTED:
@@ -726,16 +733,16 @@ Urwid >= 0.8.9 detected: %s  Urwid >= 0.9.1 and UTF-8 encoding detected: %s
 		[[tap]] = cols
 		
 		if tap.ftype == 'file_exp':
-			do_progress( tap.feed, tap.expected_size )
+			do_progress( tap.feed, tap.expected_size, exit_on_complete )
 		else:
 			do_simple( tap.feed )
 		return
 		
-	do_display( cols, urwid_ui )
+	do_display( cols, urwid_ui, exit_on_complete )
 
 
-def do_display( cols, urwid_ui ):
-	mg = MultiGraphDisplay( cols, urwid_ui )
+def do_display( cols, urwid_ui, exit_on_complete ):
+	mg = MultiGraphDisplay( cols, urwid_ui, exit_on_complete )
 	mg.main()
 
 
@@ -795,6 +802,7 @@ def parse_args():
 		urwid_ui = False
 	zero_files = False
 	interval_set = False
+	exit_on_complete = False
 	cols = []
 	taps = []
 
@@ -835,6 +843,8 @@ def parse_args():
 			urwid_ui = False
 		elif op == "-b":
 			urwid_ui = 'blocky'
+		elif op == "-x":
+			exit_on_complete = True
 		elif op == "-z":
 			zero_files = True
 		elif op[:2] == "-i":
@@ -889,7 +899,7 @@ def parse_args():
 		raise ArgumentError
 	cols.append(taps)
 
-	return cols, urwid_ui, zero_files
+	return cols, urwid_ui, zero_files, exit_on_complete
 		
 
 def do_simple( feed ):
@@ -935,7 +945,7 @@ def show( s, c, a, out = sys.stdout.write ):
 	out('\n')	
 
 
-def do_progress( feed, size ):
+def do_progress( feed, size, exit_on_complete ):
 	try:
 		fp = FileProgress( 4, long(size) )
 		out = sys.stdout.write
@@ -954,6 +964,7 @@ def do_progress( feed, size ):
 			out( '  '+readable_time(fp.completion_estimate()) )
 			out( '\n' )
 			current, expected = fp.progress()
+			if exit_on_complete and current >= expected: break
 			time.sleep(INTERVAL_DELAY)
 	except KeyboardInterrupt:
 		pass
