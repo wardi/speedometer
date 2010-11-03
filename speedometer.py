@@ -35,10 +35,11 @@ Taps:
   -tx network-interface       display bytes transmitted on network-interface
 
 Options:
-  -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
-  -p                          use plain-text display (one tap only)
   -b                          use old blocky display instead of smoothed
                               display even when UTF-8 encoding is detected
+  -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
+  -m                          monochrome mode (no colors)
+  -p                          use plain-text display (one tap only)
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
                               instead of waiting for them to be created
@@ -173,9 +174,11 @@ class MultiGraphDisplay:
         ]
         
         
-    def main(self):
+    def main(self, monochrome=False):
         from urwid.raw_display import Screen
         self.ui = Screen()
+        if monochrome:
+            self.ui.set_terminal_properties(colors=1)
         self.ui.set_input_timeouts(max_wait=INTERVAL_DELAY)
         
         self.ui.register_palette(self.palette)
@@ -696,7 +699,7 @@ class ArgumentError(Exception):
 def console():
     """Console mode"""
     try:
-        cols, urwid_ui, zero_files, exit_on_complete = parse_args()
+        cols, urwid_ui, zero_files, exit_on_complete, monochrome = parse_args()
     except ArgumentError:
         sys.stderr.write(__usage__)
         if not URWID_IMPORTED:
@@ -731,12 +734,12 @@ Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
             do_simple(tap.feed)
         return
         
-    do_display(cols, urwid_ui, exit_on_complete)
+    do_display(cols, urwid_ui, exit_on_complete, monochrome)
 
 
-def do_display(cols, urwid_ui, exit_on_complete):
+def do_display(cols, urwid_ui, exit_on_complete, monochrome):
     mg = MultiGraphDisplay(cols, urwid_ui, exit_on_complete)
-    mg.main()
+    mg.main(monochrome)
 
 
 class FileTap:
@@ -796,6 +799,7 @@ def parse_args():
     zero_files = False
     interval_set = False
     exit_on_complete = False
+    monochrome = False
     cols = []
     taps = []
 
@@ -840,6 +844,8 @@ def parse_args():
             exit_on_complete = True
         elif op == "-z":
             zero_files = True
+        elif op == "-m":
+            monochrome = True
         elif op[:2] == "-i":
             if interval_set: raise ArgumentError
             
@@ -892,7 +898,7 @@ def parse_args():
         raise ArgumentError
     cols.append(taps)
 
-    return cols, urwid_ui, zero_files, exit_on_complete
+    return cols, urwid_ui, zero_files, exit_on_complete, monochrome
         
 
 def do_simple(feed):
