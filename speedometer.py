@@ -103,7 +103,7 @@ class Speedometer:
         self.log = self.log[ - (self.maxlog+1):]
         
     def delta(self, readings=0, skip=0):
-        """delta( readings=0 ) -> time passed, byte increase
+        """delta(readings=0) -> time passed, byte increase
         if readings is 0, time since start is given
         don't include the last 'skip' readings
         None is returned if not enough data available"""
@@ -127,7 +127,7 @@ class Speedometer:
         return time_passed, byte_increase
     
     def speed(self, *l, **d):
-        d = self.delta( *l, **d )
+        d = self.delta(*l, **d)
         if d:    
             return delta_to_speed(d)
 
@@ -151,12 +151,12 @@ class MultiGraphDisplay:
                 self.displays.append(d)
             l.append(a)
             
-        graphs = urwid.Columns( [BoxPile(a) for a in l], 1 )
-        graphs = urwid.AttrWrap( graphs, 'background' )
+        graphs = urwid.Columns([BoxPile(a) for a in l], 1)
+        graphs = urwid.AttrWrap(graphs, 'background')
         title = urwid.Text("Speedometer "+__version__)
-        title = urwid.AttrWrap( urwid.Filler( title ), 'title' )
-        self.top = urwid.Overlay( title, graphs,
-            ('fixed left', 5), 16, ('fixed top', 0), 1 )
+        title = urwid.AttrWrap(urwid.Filler(title), 'title')
+        self.top = urwid.Overlay(title, graphs,
+            ('fixed left', 5), 16, ('fixed top', 0), 1)
 
         self.urwid_ui = urwid_ui
         self.exit_on_complete = exit_on_complete
@@ -164,9 +164,9 @@ class MultiGraphDisplay:
     palette = [
         ('background', 'dark gray', 'black'),
         ('reading', 'light gray', 'black'),
-        ('bar:top', 'dark cyan', 'black' ),
+        ('bar:top', 'dark cyan', 'black'),
         ('bar',     'black', 'dark cyan','standout'),
-        ('bar:num', 'white', 'black' ),
+        ('bar:num', 'white', 'black'),
         ('ca:background', 'light gray','black'),
         ('ca:c:top','dark blue','black'),
         ('ca:c',    'black','dark blue','standout'),
@@ -183,10 +183,10 @@ class MultiGraphDisplay:
         
     def main(self):
         self.ui = Screen()
-        self.ui.set_input_timeouts( max_wait=INTERVAL_DELAY )
+        self.ui.set_input_timeouts(max_wait=INTERVAL_DELAY)
         
         self.ui.register_palette(self.palette)
-        self.ui.run_wrapper( self.run )
+        self.ui.run_wrapper(self.run)
     
     def run(self):
         try:
@@ -211,7 +211,7 @@ class MultiGraphDisplay:
             self.draw_screen(size)
 
             if isinstance(time,SimulatedTime):
-                time.sleep( INTERVAL_DELAY )
+                time.sleep(INTERVAL_DELAY)
                 continue
                 
             keys = self.ui.get_input()
@@ -235,8 +235,8 @@ class MultiGraphDisplay:
                 pass
 
     def draw_screen(self, size):
-        canvas = self.top.render( size, focus=True )
-        self.ui.draw_screen( size, canvas )
+        canvas = self.top.render(size, focus=True)
+        self.ui.draw_screen(size, canvas)
     
 
 class BoxPile: # like urwid.Columns, but with vertical separation of box widgets
@@ -246,31 +246,31 @@ class BoxPile: # like urwid.Columns, but with vertical separation of box widgets
     def selectable(self):
         return False
     
-    def render(self, (maxcol, maxrow), focus=False ):
-        w = self.build_pile( self.widget_list,maxrow )
+    def render(self, (maxcol, maxrow), focus=False):
+        w = self.build_pile(self.widget_list,maxrow)
         return w.render((maxcol,maxrow))
         
     def build_pile(self, l, maxrow):
         if len(l) == 1:
             return l[0]
-        rows = int( (float(maxrow)+0.5) / len(l) )
+        rows = int((float(maxrow)+0.5) / len(l))
         if rows == 0:
-            return self.build_pile( l[1:], maxrow-rows )
-        return urwid.Frame( self.build_pile( l[1:], maxrow-rows ),
-            header = urwid.BoxAdapter( l[0], rows ) )
+            return self.build_pile(l[1:], maxrow-rows)
+        return urwid.Frame(self.build_pile(l[1:], maxrow-rows),
+            header = urwid.BoxAdapter(l[0], rows))
 
 class GraphDisplay:
     def __init__(self,tap, smoothed):
         if smoothed:
-            self.speed_graph = SpeedGraph( 
+            self.speed_graph = SpeedGraph(
                 ['background','bar'],
                 ['background','bar'],
-                {(1,0):'bar:top'} )
+                {(1,0):'bar:top'})
             
             self.cagraph = urwid.BarGraph(
                 ['ca:background', 'ca:c', 'ca:a'],
                 ['ca:background', 'ca:c', 'ca:a'],
-                {(1,0):'ca:c:top', (2,0):'ca:a:top', } )
+                {(1,0):'ca:c:top', (2,0):'ca:a:top', })
         else:
             self.speed_graph = SpeedGraph([
                 ('background', ' '), ('bar', ' ')],
@@ -280,15 +280,15 @@ class GraphDisplay:
                 ('ca:background', ' '),
                 ('ca:c',' '),
                 ('ca:a',' '),]
-            )
+           )
         
         self.last_reading = urwid.Text("",align="right")
         scale = urwid.GraphVScale(zip(GRAPH_LINES, GRAPH_CAPTIONS), GRAPH_MAX)
         footer = self.last_reading
-        graph_cols = urwid.Columns( [('fixed', 4, scale), 
+        graph_cols = urwid.Columns([('fixed', 4, scale), 
             self.speed_graph, ('fixed', 4, self.cagraph)],
-            dividechars = 1 )
-        self.top = urwid.Frame(graph_cols, footer=footer )
+            dividechars = 1)
+        self.top = urwid.Frame(graph_cols, footer=footer)
 
         self.spd = Speedometer(6)
         self.feed = tap.feed
@@ -307,13 +307,13 @@ class GraphDisplay:
         s = self.spd.speed(1) # last sample
         c = curve(self.spd) # "curved" reading
         a = self.spd.speed() # running average
-        self.speed_graph.append_log( s )
+        self.speed_graph.append_log(s)
         
         self.last_reading.set_text([ 
             ('title', [self.description, "  "]),
             ('bar:num', [readable_speed(s), " "]),
             ('ca:c:num',[readable_speed(c), " "]),
-            ('ca:a:num',readable_speed(a)) ] )
+            ('ca:a:num',readable_speed(a)) ])
         
         self.cagraph.set_data([
             [speed_scale(c),0],
@@ -326,16 +326,16 @@ class GraphDisplayProgress(GraphDisplay):
     def __init__(self, tap, smoothed):
         GraphDisplay.__init__(self, tap, smoothed)
         
-        self.spd = FileProgress( 6, tap.expected_size )
+        self.spd = FileProgress(6, tap.expected_size)
         if smoothed:
             self.pb = urwid.ProgressBar('pr:n','pr:c',0,
                 tap.expected_size, 'pr:cn')
         else:
             self.pb = urwid.ProgressBar('pr:n','pr:c',0,
-                tap.expected_size )
+                tap.expected_size)
         self.est = urwid.Text("")
         pbest = urwid.Columns([self.pb,('fixed',10,self.est)], 1)
-        newfoot = urwid.Pile( [self.top.footer, pbest] )
+        newfoot = urwid.Pile([self.top.footer, pbest])
         self.top.footer = newfoot
         
     def update_readings(self):
@@ -349,11 +349,11 @@ class GraphDisplayProgress(GraphDisplay):
         return current < expected
 
 class SpeedGraph:
-    def __init__(self, attlist, hatt=None, satt=None ):
+    def __init__(self, attlist, hatt=None, satt=None):
         if satt is None:
-            self.graph = urwid.BarGraph( attlist, hatt )
+            self.graph = urwid.BarGraph(attlist, hatt)
         else:
-            self.graph = urwid.BarGraph( attlist, hatt, satt )
+            self.graph = urwid.BarGraph(attlist, hatt, satt)
         # override BarGraph's get_data
         self.graph.get_data = self.get_data
         
@@ -362,7 +362,7 @@ class SpeedGraph:
         self.log = []
         self.bar = []
         
-    def get_data(self, (maxcol,maxrow) ):
+    def get_data(self, (maxcol,maxrow)):
         bar = self.bar[ -maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
@@ -383,14 +383,14 @@ class SpeedGraph:
         graphtop = self.graph
         for i,y in zip(topl, yvals):
             s = self.log[ i ]
-            txt = urwid.Text( readable_speed( s ) )
-            label = urwid.AttrWrap( urwid.Filler( txt ), 'reading')
+            txt = urwid.Text(readable_speed(s))
+            label = urwid.AttrWrap(urwid.Filler(txt), 'reading')
 
-            graphtop = urwid.Overlay( label, graphtop,
+            graphtop = urwid.Overlay(label, graphtop,
                 ('fixed left', pad+i-4-left), 9,
-                ('fixed top', max(0,y-2) ), 1 )
+                ('fixed top', max(0,y-2)), 1)
         
-        return graphtop.render( (maxcol, maxrow), focus )
+        return graphtop.render((maxcol, maxrow), focus)
 
     def local_maximums(self, pad, left):
         """
@@ -409,7 +409,7 @@ class SpeedGraph:
             if li == 0: continue
             if i and l[i-1]>=li: continue
             if l[i+1]>li: continue
-            highs.append( (li, -i) )
+            highs.append((li, -i))
         
         highs.sort()
         highs.reverse()
@@ -421,7 +421,7 @@ class SpeedGraph:
             if tag[i]: continue
             for k in range(max(0,i-dist), min(len(l),i+dist)):
                 tag[k]=True
-            out.append( i )
+            out.append(i)
 
         return out
         
@@ -432,15 +432,15 @@ class SpeedGraph:
         self.log = self.log[-300:] + [s]
 
 
-def speed_scale( s ):
+def speed_scale(s):
     if s <= 0: return 0
-    x = (math.log( s ) * LN_TO_LG_SCALE )
-    x = min(GRAPH_MAX, max( 0, x-5 ))
+    x = (math.log(s) * LN_TO_LG_SCALE)
+    x = min(GRAPH_MAX, max(0, x-5))
     return x
 
 
-def delta_to_speed( delta ):
-    """delta_to_speed( delta ) -> speed in bytes per second"""
+def delta_to_speed(delta):
+    """delta_to_speed(delta) -> speed in bytes per second"""
     time_passed, byte_increase = delta
     if time_passed <= 0: return 0
     if long(time_passed*1000) == 0: return 0
@@ -449,8 +449,8 @@ def delta_to_speed( delta ):
 
 
 
-def readable_speed( speed ):
-    """readable_speed( speed ) -> string
+def readable_speed(speed):
+    """readable_speed(speed) -> string
     speed is in bytes per second
     returns a readable version of the speed given"""
     
@@ -476,8 +476,8 @@ def readable_speed( speed ):
     
 
 
-def graphic_speed( speed ):
-    """graphic_speed( speed ) -> string
+def graphic_speed(speed):
+    """graphic_speed(speed) -> string
     speed is bytes per second
     returns a graphic representing given speed"""
     
@@ -536,7 +536,7 @@ def network_feed(device,rxtx):
     rxtx is "RX" or "TX"
     """
     assert rxtx in ["RX","TX"]
-    r = re.compile( r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE )
+    r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
     
     def networkfn(devre=r,rxtx=rxtx):
         f = open('/proc/net/dev')
@@ -554,15 +554,15 @@ def network_feed(device,rxtx):
         
     return networkfn
         
-def simulated_feed( data ):
+def simulated_feed(data):
     total = 0
     adjusted_data = [0]
     for d in data:
         d = int(d)
-        adjusted_data.append( d + total )
+        adjusted_data.append(d + total)
         total += d
         
-    def simfn( data=adjusted_data ):
+    def simfn(data=adjusted_data):
         if data: 
             return long(data.pop(0))
         return None
@@ -584,17 +584,17 @@ class FileProgress:
     samples_for_estimate = 4
     
     def __init__(self, maxlog, expected_size):
-        """FileProgress( expected_size )
+        """FileProgress(expected_size)
         expected_size is the file's expected size in bytes"""
         
         self.expected_size = expected_size
-        self.speedometer = Speedometer( maxlog )
+        self.speedometer = Speedometer(maxlog)
         self.current_size = None
         self.speed = self.speedometer.speed
         self.delta = self.speedometer.delta
 
-    def update(self, current_size ):
-        """update( current_size )
+    def update(self, current_size):
+        """update(current_size)
         current_size is the current file size
         update will record the current size and time"""
         
@@ -611,7 +611,7 @@ class FileProgress:
         """completion_estimate() -> estimated seconds remaining
         will return None if not enough data is available"""
         
-        d = self.speedometer.delta( self.samples_for_estimate )
+        d = self.speedometer.delta(self.samples_for_estimate)
         if not d: return None  # not enough readings
         (seconds,bytes) = d
         if bytes <= 0: return None  # currently stalled
@@ -634,9 +634,9 @@ class FileProgress:
 
     
 
-def graphic_progress( progress, columns ):
-    """graphic_progress( progress, columns ) -> string
-    progress is a tuple of ( value, max )
+def graphic_progress(progress, columns):
+    """graphic_progress(progress, columns) -> string
+    progress is a tuple of (value, max)
     columns is length of string returned
     returns a graphic representation of value vs. max"""
     value, max = progress
@@ -651,13 +651,13 @@ def graphic_progress( progress, columns ):
     return gfx
 
 
-def time_as_units( seconds ):
-    """time_units( seconds ) -> list of (count, suffix) tuples
+def time_as_units(seconds):
+    """time_units(seconds) -> list of (count, suffix) tuples
     returns a unit breakdown for the given number of seconds"""
 
     if seconds==None: seconds=0
 
-    # ( multiplicative factor, suffix )
+    # (multiplicative factor, suffix)
     units = (1,"s"), (60,"m"), (60,"h"), (24,"d"), (7,"w"), (52,"y")
     
     scale = 1L
@@ -672,16 +672,16 @@ def time_as_units( seconds ):
     out = []
     for i in range(topunit, -1, -1):
         mul,suf = units[i]
-        value = int( seconds/scale )
+        value = int(seconds/scale)
         seconds = seconds - value * scale
         scale = scale / mul
-        out.append( (value, suf) )
+        out.append((value, suf))
         
     return out    
     
     
-def readable_time( seconds, columns=None ):
-    """readable_time( seconds, columns=None ) -> string
+def readable_time(seconds, columns=None):
+    """readable_time(seconds, columns=None) -> string
     return the seconds as a readable string
     if specified, columns is the maximum length of the returned string"""
 
@@ -712,7 +712,7 @@ def console():
 Python Version: %d.%d
 Urwid >= 0.8.9 detected: %s  Urwid >= 0.9.1 and UTF-8 encoding detected: %s
 """ % (sys.version_info[:2] + (["NO","yes"][URWID_IMPORTED],) +
-        (["NO","yes"][URWID_UTF8],) ) )
+        (["NO","yes"][URWID_UTF8],)))
         return
     
     if zero_files:
@@ -733,16 +733,16 @@ Urwid >= 0.8.9 detected: %s  Urwid >= 0.9.1 and UTF-8 encoding detected: %s
         [[tap]] = cols
         
         if tap.ftype == 'file_exp':
-            do_progress( tap.feed, tap.expected_size, exit_on_complete )
+            do_progress(tap.feed, tap.expected_size, exit_on_complete)
         else:
-            do_simple( tap.feed )
+            do_simple(tap.feed)
         return
         
-    do_display( cols, urwid_ui, exit_on_complete )
+    do_display(cols, urwid_ui, exit_on_complete)
 
 
-def do_display( cols, urwid_ui, exit_on_complete ):
-    mg = MultiGraphDisplay( cols, urwid_ui, exit_on_complete )
+def do_display(cols, urwid_ui, exit_on_complete):
+    mg = MultiGraphDisplay(cols, urwid_ui, exit_on_complete)
     mg.main()
 
 
@@ -750,7 +750,7 @@ class FileTap:
     def __init__(self, name):
         self.ftype = 'file'
         self.file_name = name
-        self.feed = file_size_feed( name )
+        self.feed = file_size_feed(name)
         self.wait = True
     
     def set_expected_size(self, size):
@@ -763,7 +763,7 @@ class FileTap:
     def description(self):
         return "FILE: "+ self.file_name
         
-    def wait_creation( self):
+    def wait_creation(self):
         if not self.wait:
             return
 
@@ -777,7 +777,7 @@ class NetworkTap:
     def __init__(self, rxtx, interface):
         self.ftype = rxtx
         self.interface = interface
-        self.feed = network_feed( interface, rxtx )
+        self.feed = network_feed(interface, rxtx)
     
     def description(self):
         return self.ftype+": "+self.interface
@@ -808,7 +808,7 @@ def parse_args():
 
     def push_tap(tap, taps):
         if tap is None: return
-        taps.append( tap )
+        taps.append(tap)
     
     i = 0
     while i < len(args):
@@ -829,14 +829,14 @@ def parse_args():
             simargs = []
             i += 1
             while i < len(args) and args[i][:1] != "-":
-                simargs.append( args[i] )
+                simargs.append(args[i])
                 i += 1
             simulate = tap
             if not simulate:
                 simulate = taps[-1]
-            simulate.feed = simulated_feed( simargs )
+            simulate.feed = simulated_feed(simargs)
             global time
-            time = SimulatedTime( time.time() )
+            time = SimulatedTime(time.time())
             continue
         elif op == "-p":
             # disable urwid ui
@@ -902,7 +902,7 @@ def parse_args():
     return cols, urwid_ui, zero_files, exit_on_complete
         
 
-def do_simple( feed ):
+def do_simple(feed):
     try:
         spd = Speedometer(6)
         f = feed()
@@ -921,7 +921,7 @@ def do_simple( feed ):
     except KeyboardInterrupt:
         pass
 
-def curve( spd ):
+def curve(spd):
     """Try to smooth speed fluctuations"""
     val = [ 2, 4, 4, 3, 2, 1 ] # speed sampling relative weights
     wtot = 0 # total weighting
@@ -934,20 +934,20 @@ def curve( spd ):
         v = val[i]
         wtot += v
         ws += float(b)*v/t
-    return delta_to_speed( (wtot, ws) )
+    return delta_to_speed((wtot, ws))
     
 
-def show( s, c, a, out = sys.stdout.write ):
-    out( readable_speed(s) )
-    out( "  c:" + readable_speed(c) )
-    out( "  A:" + readable_speed(a) )
-    out( "  (" + graphic_speed(s)+")" )
+def show(s, c, a, out = sys.stdout.write):
+    out(readable_speed(s))
+    out("  c:" + readable_speed(c))
+    out("  A:" + readable_speed(a))
+    out("  (" + graphic_speed(s)+")")
     out('\n')    
 
 
-def do_progress( feed, size, exit_on_complete ):
+def do_progress(feed, size, exit_on_complete):
     try:
-        fp = FileProgress( 4, long(size) )
+        fp = FileProgress(4, long(size))
         out = sys.stdout.write
 
         f = feed()
@@ -958,11 +958,11 @@ def do_progress( feed, size, exit_on_complete ):
             f = feed()
             if f is None: return
             fp.update(f)
-            out( '('+graphic_speed(fp.current_speed())+')' )
-            out( readable_speed(fp.current_speed()) )
-            out( ' ['+graphic_progress(fp.progress(), 36)+']' )
-            out( '  '+readable_time(fp.completion_estimate()) )
-            out( '\n' )
+            out('('+graphic_speed(fp.current_speed())+')')
+            out(readable_speed(fp.current_speed()))
+            out(' ['+graphic_progress(fp.progress(), 36)+']')
+            out('  '+readable_time(fp.completion_estimate()))
+            out('\n')
             current, expected = fp.progress()
             if exit_on_complete and current >= expected: break
             time.sleep(INTERVAL_DELAY)
