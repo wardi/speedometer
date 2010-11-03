@@ -144,7 +144,7 @@ class MultiGraphDisplay:
                 self.displays.append(d)
             l.append(a)
             
-        graphs = urwid.Columns([BoxPile(a) for a in l], 1)
+        graphs = urwid.Columns([urwid.Pile(a) for a in l], 1)
         graphs = urwid.AttrWrap(graphs, 'background')
         title = urwid.Text("Speedometer "+__version__)
         title = urwid.AttrWrap(urwid.Filler(title), 'title')
@@ -219,26 +219,6 @@ class MultiGraphDisplay:
             while not self.ui.get_input():
                 pass
     
-
-class BoxPile: # like urwid.Columns, but with vertical separation of box widgets
-    def __init__(self, widget_list):
-        self.widget_list = widget_list
-    
-    def selectable(self):
-        return False
-    
-    def render(self, (maxcol, maxrow), focus=False):
-        w = self.build_pile(self.widget_list,maxrow)
-        return w.render((maxcol,maxrow))
-        
-    def build_pile(self, l, maxrow):
-        if len(l) == 1:
-            return l[0]
-        rows = int((float(maxrow)+0.5) / len(l))
-        if rows == 0:
-            return self.build_pile(l[1:], maxrow-rows)
-        return urwid.Frame(self.build_pile(l[1:], maxrow-rows),
-            header = urwid.BoxAdapter(l[0], rows))
 
 class GraphDisplay:
     def __init__(self,tap, smoothed):
