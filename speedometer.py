@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.6"
+__version__ = "2.7"
 
 import time
 import sys
@@ -45,8 +45,7 @@ Options:
 """
 
 __urwid_info__ = """
-Speedometer requires Urwid 0.8.9 or later when not using plain-text display.
-Version 0.9.1 or later is required for smoothed UTF-8 display.
+Speedometer requires Urwid 0.9.9.1 or later when not using plain-text display.
 Urwid may be downloaded from:  http://excess.org/urwid/
 Urwid may be installed system-wide or in the same directory as speedometer.
 """
@@ -64,21 +63,15 @@ except: False, True = 0, 1
 
 LN_TO_LG_SCALE = 1.4426950408889634 # LN_TO_LG_SCALE * ln(x) == lg(x)
 
+URWID_IMPORTED = False
+URWID_UTF8 = False
 try:
     import urwid
-    from urwid.curses_display import Screen
-    urwid.BarGraph
-    URWID_IMPORTED = True
-    URWID_UTF8 = False
-    try:
-        if urwid.get_encoding_mode() == "utf8":
-            from urwid.raw_display import Screen
-            URWID_UTF8 = True
-    except: 
-        pass
-except:
-    URWID_IMPORTED = False
-    URWID_UTF8 = False
+    if urwid.VERSION >= (0, 9, 9, 1):
+        URWID_IMPORTED = True
+        URWID_UTF8 = urwid.get_encoding_mode() == "utf8"
+except (ImportError, AttributeError):
+    pass
     
 
 class Speedometer:
@@ -161,26 +154,27 @@ class MultiGraphDisplay:
         self.exit_on_complete = exit_on_complete
 
     palette = [
-        ('background', 'dark gray', 'black'),
-        ('reading', 'light gray', 'black'),
-        ('bar:top', 'dark cyan', 'black'),
-        ('bar',     'black', 'dark cyan','standout'),
-        ('bar:num', 'white', 'black'),
-        ('ca:background', 'light gray','black'),
-        ('ca:c:top','dark blue','black'),
-        ('ca:c',    'black','dark blue','standout'),
-        ('ca:c:num','light blue','black'),
-        ('ca:a:top','light gray','black'),
-        ('ca:a',    'black','light gray','standout'),
-        ('ca:a:num','light gray', 'black'),
-        ('title',   'white', 'black','underline'),
-        ('pr:n',    'white', 'dark blue'),
-        ('pr:c',    'white', 'dark green','standout'),
+        ('background', 'dark gray', 'default'),
+        ('reading', 'default', 'default'),
+        ('bar:top', 'dark cyan', 'default'),
+        ('bar',     'default', 'dark cyan','standout'),
+        ('bar:num', 'default', 'default'),
+        ('ca:background', 'default, bold','default'),
+        ('ca:c:top','dark blue','default'),
+        ('ca:c',    'default','dark blue','standout'),
+        ('ca:c:num','light blue','default'),
+        ('ca:a:top','light gray','default'),
+        ('ca:a',    'default','light gray','standout'),
+        ('ca:a:num','default, bold', 'default'),
+        ('title',   'default', 'default','underline'),
+        ('pr:n',    'default', 'dark blue'),
+        ('pr:c',    'default', 'dark green','standout'),
         ('pr:cn',   'dark green', 'dark blue'),
         ]
         
         
     def main(self):
+        from urwid.raw_display import Screen
         self.ui = Screen()
         self.ui.set_input_timeouts(max_wait=INTERVAL_DELAY)
         
@@ -709,7 +703,7 @@ def console():
             sys.stderr.write(__urwid_info__)
         sys.stderr.write("""
 Python Version: %d.%d
-Urwid >= 0.8.9 detected: %s  Urwid >= 0.9.1 and UTF-8 encoding detected: %s
+Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
 """ % (sys.version_info[:2] + (["NO","yes"][URWID_IMPORTED],) +
         (["NO","yes"][URWID_UTF8],)))
         return
