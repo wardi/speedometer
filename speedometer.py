@@ -18,7 +18,6 @@ __version__ = "2.6"
 import time
 import sys
 import os
-import popen2
 import string
 import math
 import re
