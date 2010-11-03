@@ -173,51 +173,40 @@ class MultiGraphDisplay:
         ('pr:cn',   'dark green', 'dark blue'),
         ]
         
-        
+
     def main(self, monochrome=False):
-        from urwid.raw_display import Screen
-        self.ui = Screen()
+        self.loop = urwid.MainLoop(self.top, palette=self.palette,
+            unhandled_input=self.unhandled_input)
         if monochrome:
-            self.ui.set_terminal_properties(colors=1)
-        self.ui.set_input_timeouts(max_wait=INTERVAL_DELAY)
-        
-        self.ui.register_palette(self.palette)
-        self.ui.run_wrapper(self.run)
-    
-    def run(self):
+            self.loop.screen.set_terminal_properties(colors=1)
+
         try:
             pending = self.update_readings()
             if self.exit_on_complete and pending == 0: return
         except EndOfData:
             return
         time.sleep(INITIAL_DELAY)
-        resizing = False
-        
-        size = self.ui.get_cols_rows()
-        while True:
-            if not resizing:
-                try:
-                    pending = self.update_readings()
-                    if self.exit_on_complete and pending == 0: return
-                except EndOfData:
-                    self.end_of_data()
-                    return
-            resizing = False
-            
-            self.draw_screen(size)
+        self.update_callback()
+        self.loop.run()
 
-            if isinstance(time,SimulatedTime):
-                time.sleep(INTERVAL_DELAY)
-                continue
-                
-            keys = self.ui.get_input()
-            for k in keys:
-                if k == "window resize":
-                    size = self.ui.get_cols_rows()
-                    resizing = True
-                else:
-                    return
-    
+    def unhandled_input(self, key):
+        "Exit on any keypress"
+        if key != "window resize":
+            raise urwid.ExitMainLoop()
+
+    def update_callback(self, *args):
+        next_call_in = INTERVAL_DELAY
+        if isinstance(time, SimulatedTime):
+            next_call_in = 0
+
+        self.loop.set_alarm_in(next_call_in, self.update_callback)
+        try:
+            pending = self.update_readings()
+            if self.exit_on_complete and pending == 0: return
+        except EndOfData:
+            self.end_of_data()
+            raise urwid.ExitMainLoop()
+        
     def update_readings(self):
         pending = 0
         for d in self.displays:
@@ -229,10 +218,6 @@ class MultiGraphDisplay:
         if isinstance(time, SimulatedTime):
             while not self.ui.get_input():
                 pass
-
-    def draw_screen(self, size):
-        canvas = self.top.render(size, focus=True)
-        self.ui.draw_screen(size, canvas)
     
 
 class BoxPile: # like urwid.Columns, but with vertical separation of box widgets
