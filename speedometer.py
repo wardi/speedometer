@@ -38,7 +38,8 @@ Options:
   -b                          use old blocky display instead of smoothed
                               display even when UTF-8 encoding is detected
   -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
-  -m                          monochrome mode (no colors)
+  -k (1|16|88|256)            set the number of colors this terminal
+                              supports (default 16)
   -p                          use plain-text display (one tap only)
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
@@ -53,6 +54,8 @@ Urwid may be installed system-wide or in the same directory as speedometer.
 
 INITIAL_DELAY = 0.5 # seconds
 INTERVAL_DELAY = 1.0 # seconds
+
+VALID_NUM_COLORS = (1, 16, 88, 256)
 
 GRAPH_MAX = 27
 GRAPH_LINES = [25,20,15,10,5]
@@ -155,30 +158,33 @@ class MultiGraphDisplay:
         self.exit_on_complete = exit_on_complete
 
     palette = [
+        # main bar graph
         ('background', 'dark gray', 'default'),
-        ('reading', 'default', 'default'),
-        ('bar:top', 'dark cyan', 'default'),
-        ('bar',     'default', 'dark cyan','standout'),
-        ('bar:num', 'default', 'default'),
-        ('ca:background', 'default, bold','default'),
-        ('ca:c:top','dark blue','default'),
-        ('ca:c',    'default','dark blue','standout'),
-        ('ca:c:num','light blue','default'),
-        ('ca:a:top','light gray','default'),
-        ('ca:a',    'default','light gray','standout'),
-        ('ca:a:num','default, bold', 'default'),
-        ('title',   'default', 'default','underline'),
-        ('pr:n',    'default', 'dark blue'),
-        ('pr:c',    'default', 'dark green','standout'),
-        ('pr:cn',   'dark green', 'dark blue'),
+        ('reading',    'default',   'default'),
+        ('bar:top',    'dark cyan', 'default'),
+        ('bar',        'default',   'dark cyan','standout'),
+        ('bar:num',    'default',   'default'),
+        # "curved" + average bars at right side
+        ('ca:background', 'default','default'),
+        ('ca:c:top',   'dark blue', 'default'),
+        ('ca:c',       'default',   'dark blue','standout'),
+        ('ca:c:num',   'light blue','default'),
+        ('ca:a:top',   'light gray','default'),
+        ('ca:a',       'default',   'light gray','standout'),
+        ('ca:a:num',   'default, bold', 'default', 'bold'),
+        # text headings and numeric values displayed
+        ('title',      'default',   'default','underline,bold'),
+        # progress bar
+        ('pr:n',       'default',   'dark blue'),
+        ('pr:c',       'default',   'dark green','standout'),
+        ('pr:cn',      'dark green','dark blue'),
         ]
         
 
-    def main(self, monochrome=False):
+    def main(self, num_colors):
         self.loop = urwid.MainLoop(self.top, palette=self.palette,
             unhandled_input=self.unhandled_input)
-        if monochrome:
-            self.loop.screen.set_terminal_properties(colors=1)
+        self.loop.screen.set_terminal_properties(colors=num_colors)
 
         try:
             pending = self.update_readings()
@@ -198,6 +204,7 @@ class MultiGraphDisplay:
         next_call_in = INTERVAL_DELAY
         if isinstance(time, SimulatedTime):
             next_call_in = 0
+            time.sleep(INTERVAL_DELAY) # update simulated time
 
         self.loop.set_alarm_in(next_call_in, self.update_callback)
         try:
@@ -216,7 +223,7 @@ class MultiGraphDisplay:
     def end_of_data(self):
         # pause for taking screenshot of simulated data
         if isinstance(time, SimulatedTime):
-            while not self.ui.get_input():
+            while not self.loop.screen.get_input():
                 pass
     
 
@@ -324,7 +331,7 @@ class SpeedGraph:
         self.bar = []
         
     def get_data(self, (maxcol,maxrow)):
-        bar = self.bar[ -maxcol:]
+        bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
         return bar, GRAPH_MAX, GRAPH_LINES
@@ -664,7 +671,7 @@ class ArgumentError(Exception):
 def console():
     """Console mode"""
     try:
-        cols, urwid_ui, zero_files, exit_on_complete, monochrome = parse_args()
+        cols, urwid_ui, zero_files, exit_on_complete, num_colors = parse_args()
     except ArgumentError:
         sys.stderr.write(__usage__)
         if not URWID_IMPORTED:
@@ -699,12 +706,12 @@ Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
             do_simple(tap.feed)
         return
         
-    do_display(cols, urwid_ui, exit_on_complete, monochrome)
+    do_display(cols, urwid_ui, exit_on_complete, num_colors)
 
 
-def do_display(cols, urwid_ui, exit_on_complete, monochrome):
+def do_display(cols, urwid_ui, exit_on_complete, num_colors):
     mg = MultiGraphDisplay(cols, urwid_ui, exit_on_complete)
-    mg.main(monochrome)
+    mg.main(num_colors)
 
 
 class FileTap:
@@ -764,7 +771,8 @@ def parse_args():
     zero_files = False
     interval_set = False
     exit_on_complete = False
-    monochrome = False
+    num_colors = 16
+    colors_set = False
     cols = []
     taps = []
 
@@ -777,7 +785,7 @@ def parse_args():
         op = args[i]
         if op in ("-h","--help"):
             raise ArgumentError
-        elif op in ("-i","-rx","-tx","-f"):
+        elif op in ("-i","-rx","-tx","-f","-k"):
             # combine two part arguments with the following argument
             try:
                 if op != "-f":
@@ -809,8 +817,15 @@ def parse_args():
             exit_on_complete = True
         elif op == "-z":
             zero_files = True
-        elif op == "-m":
-            monochrome = True
+        elif op[:2] == "-k":
+            if colors_set: raise ArgumentError
+            try:
+                num_colors = int(op[2:])
+                assert num_colors in VALID_NUM_COLORS
+            except:
+                raise ArgumentError
+            colors_set = True 
+
         elif op[:2] == "-i":
             if interval_set: raise ArgumentError
             
@@ -863,7 +878,7 @@ def parse_args():
         raise ArgumentError
     cols.append(taps)
 
-    return cols, urwid_ui, zero_files, exit_on_complete, monochrome
+    return cols, urwid_ui, zero_files, exit_on_complete, num_colors
         
 
 def do_simple(feed):
