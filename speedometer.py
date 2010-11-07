@@ -158,26 +158,27 @@ class MultiGraphDisplay:
         self.exit_on_complete = exit_on_complete
 
     palette = [
+        # name,        16-color fg, bg,         mono fg,    88/256-color fg, bg
         # main bar graph
-        ('background', 'dark gray', 'default'),
-        ('reading',    'default',   'default'),
-        ('bar:top',    'dark cyan', 'default'),
-        ('bar',        'default',   'dark cyan','standout'),
-        ('bar:num',    'default',   'default'),
-        # "curved" + average bars at right side
-        ('ca:background', 'default','default'),
-        ('ca:c:top',   'dark blue', 'default'),
-        ('ca:c',       'default',   'dark blue','standout'),
-        ('ca:c:num',   'light blue','default'),
-        ('ca:a:top',   'light gray','default'),
-        ('ca:a',       'default',   'light gray','standout'),
-        ('ca:a:num',   'default, bold', 'default', 'bold'),
+        ('background', 'dark gray', '',         '',         '#008', '#ddb',),
+        ('bar:top',    'dark cyan', '',         '',         '#488', '#ddb'),
+        ('bar',        '',          'dark cyan','standout', '#008', '#488'),
+        ('bar:num',    '',          '',         '',         '#066', '#ddb'),
+        # latest "curved" + average bar graph at right side
+        ('ca:background', '',       '',         '',         'g66',  '#ddb'),
+        ('ca:c:top',   'dark blue', '',         '',         '#66d', '#ddb'),
+        ('ca:c',       '',          'dark blue','standout', 'g66',  '#66d'),
+        ('ca:c:num',   'light blue','',         '',         '#66d', '#ddb'),
+        ('ca:a:top',   'light gray','',         '',         '#6b6', '#ddb'),
+        ('ca:a',       '',          'light gray','standout','g66',  '#6b6'),
+        ('ca:a:num',   'light gray','',          'bold',    '#6b6', '#ddb'),
         # text headings and numeric values displayed
-        ('title',      'default',   'default','underline,bold'),
+        ('title',      '',          '',   'underline,bold', '#000', '#ddb'),
+        ('reading',    '',          '',         '',         '#886', '#ddb'),
         # progress bar
-        ('pr:n',       'default',   'dark blue'),
-        ('pr:c',       'default',   'dark green','standout'),
-        ('pr:cn',      'dark green','dark blue'),
+        ('pr:n',       '',          'dark blue','',         'g11', '#bb6'),
+        ('pr:c',       '',          'dark green','standout','g11', '#fd0'),
+        ('pr:cn',      'dark green','dark blue','',         '#fd0', '#bb6'),
         ]
         
 
