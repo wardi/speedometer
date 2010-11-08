@@ -197,8 +197,8 @@ class MultiGraphDisplay:
         self.loop.run()
 
     def unhandled_input(self, key):
-        "Exit on any keypress"
-        if key != "window resize":
+        "Exit on Q or ESC"
+        if key in ('q', 'Q', 'esc'):
             raise urwid.ExitMainLoop()
 
     def update_callback(self, *args):
