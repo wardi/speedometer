@@ -70,9 +70,6 @@ def graph_max(): return graph_scale[-1][0]
 def graph_lines_captions(): return list(reversed(graph_scale[:-1]))
 def graph_lines(): return [x[0] for x in graph_lines_captions()]
 
-try: True # old python?
-except: False, True = 0, 1
-
 LN_TO_LG_SCALE = 1.4426950408889634 # LN_TO_LG_SCALE * ln(x) == lg(x)
 
 URWID_IMPORTED = False
