@@ -40,6 +40,7 @@ Options:
   -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
   -k (1|16|88|256)            set the number of colors this terminal
                               supports (default 16)
+  -n                          use bits/s instead of bytes/s
   -p                          use plain-text display (one tap only)
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
@@ -63,6 +64,13 @@ DEFAULT_SCALE = [
     (15, ' 1MiB\n  /s'),
     (20, '32MiB\n  /s'),
     (25, ' 1GiB\n  /s'),
+    (27, None)]
+BITS_SCALE = [
+    (2,  ' 1Kib\n  /s'),
+    (7,  '32Kib\n  /s'),
+    (12, ' 1Mib\n  /s'),
+    (17, '32Mib\n  /s'),
+    (22, ' 1Gib\n  /s'),
     (27, None)]
 
 graph_scale = DEFAULT_SCALE
@@ -424,9 +432,11 @@ def delta_to_speed(delta):
 
 
 def readable_speed(speed):
-    """readable_speed(speed) -> string
+    """
+    readable_speed(speed) -> string
     speed is in bytes per second
-    returns a readable version of the speed given"""
+    returns a readable version of the speed given
+    """
     
     if speed == None or speed < 0: speed = 0
     
@@ -447,6 +457,33 @@ def readable_speed(speed):
         step = step * 1024L
     
     return "%4d " % (speed/(step/1024)) + units[-1]
+
+
+def readable_speed_bits(speed):
+    """
+    bits/s version of readable_speed()
+    """
+    if speed == None or speed < 0: speed = 0
+
+    speed = speed * 8
+    units = "b/s  ", "Kib/s", "Mib/s", "Gib/s", "Tib/s"
+    step = 1L
+
+    for u in units:
+
+        if step > 1:
+            s = "%4.2f " %(float(speed)/step)
+            if len(s) <= 5: return s + u
+            s = "%4.1f " %(float(speed)/step)
+            if len(s) <= 5: return s + u
+
+        if speed/step < 1024:
+            return "%4d " %(speed/step) + u
+
+        step = step * 1024L
+
+    return "%4d " % (speed/(step/1024)) + units[-1]
+
     
 
 
@@ -819,6 +856,11 @@ def parse_args():
             urwid_ui = False
         elif op == "-b":
             urwid_ui = 'blocky'
+        elif op == "-n":
+            global graph_scale
+            global readable_speed
+            graph_scale = BITS_SCALE
+            readable_speed = readable_speed_bits
         elif op == "-x":
             exit_on_complete = True
         elif op == "-z":
