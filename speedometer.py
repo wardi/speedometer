@@ -31,15 +31,21 @@ Taps:
   -f filename [size]          display download speed [with progress bar]
   -r network-interface        display bytes received on network-interface
   -t network-interface        display bytes transmitted on network-interface
+  -c                          start a new column for following tap arguments
 
 Options:
   -b                          use old blocky display instead of smoothed
                               display even when UTF-8 encoding is detected
+                              (use this if you see strange characters)
   -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
   -k (1|16|88|256)            set the number of colors this terminal
                               supports (default 16)
-  -n                          use bits/s instead of bytes/s
-  -p                          use plain-text display (one tap only)
+  -m chart-maximum            set the maximum bytes/second displayed on
+                              the chart (default 2^32)
+  -n chart-minimum            set the minimum bytes/second displayed on
+                              the chart (default 32)
+  -p                          use original plain-text display (one tap only)
+  -s                          use bits/s instead of bytes/s
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
                               instead of waiting for them to be created
@@ -66,21 +72,24 @@ DEFAULT_SCALE = [
     (15, ' 1MiB\n  /s'),
     (20, '32MiB\n  /s'),
     (25, ' 1GiB\n  /s'),
-    (27, None)]
+    ]
 BITS_SCALE = [
     (2,  ' 1Kib\n  /s'),
     (7,  '32Kib\n  /s'),
     (12, ' 1Mib\n  /s'),
     (17, '32Mib\n  /s'),
     (22, ' 1Gib\n  /s'),
-    (27, None)]
+    ]
+
+chart_minimum = 2**5
+chart_maximum = 2**32
 
 graph_scale = DEFAULT_SCALE
-def graph_max(): return graph_scale[-1][0]
-def graph_lines_captions(): return list(reversed(graph_scale[:-1]))
+def graph_min(): return math.log(chart_minimum,2)
+def graph_max(): return math.log(chart_maximum,2)
+def graph_range(): return graph_max() - graph_min()
+def graph_lines_captions(): return list(reversed(graph_scale))
 def graph_lines(): return [x[0] for x in graph_lines_captions()]
-
-LN_TO_LG_SCALE = 1.4426950408889634 # LN_TO_LG_SCALE * ln(x) == lg(x)
 
 URWID_IMPORTED = False
 URWID_UTF8 = False
@@ -267,7 +276,7 @@ class GraphDisplay:
            )
         
         self.last_reading = urwid.Text("",align="right")
-        scale = urwid.GraphVScale(graph_lines_captions(), graph_max())
+        scale = urwid.GraphVScale(graph_lines_captions(), graph_range())
         footer = self.last_reading
         graph_cols = urwid.Columns([('fixed', 5, scale), 
             self.speed_graph, ('fixed', 4, self.cagraph)],
@@ -302,7 +311,7 @@ class GraphDisplay:
         self.cagraph.set_data([
             [speed_scale(c),0],
             [0,speed_scale(a)],
-            ], graph_max())
+            ], graph_range())
         
             
 
@@ -350,7 +359,7 @@ class SpeedGraph:
         bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
-        return bar, graph_max(), graph_lines()
+        return bar, graph_range(), graph_lines()
     
     def selectable(self):
         return False
@@ -362,7 +371,7 @@ class SpeedGraph:
         
         topl = self.local_maximums(pad, left)
         yvals = [ max(self.bar[i]) for i in topl ]
-        yvals = urwid.scale_bar_values(yvals, graph_max(), maxrow)
+        yvals = urwid.scale_bar_values(yvals, graph_range(), maxrow)
         
         graphtop = self.graph
         for i,y in zip(topl, yvals):
@@ -418,8 +427,8 @@ class SpeedGraph:
 
 def speed_scale(s):
     if s <= 0: return 0
-    x = (math.log(s) * LN_TO_LG_SCALE)
-    x = min(graph_max(), max(0, x-5))
+    x = math.log(s, 2)
+    x = min(graph_range(), max(0, x-graph_min()))
     return x
 
 
@@ -830,10 +839,10 @@ def parse_args():
         op = args[i]
         if op in ("-h","--help"):
             raise ArgumentError
-        elif op in ("-i","-r","-rx","-t","-tx","-f","-k"):
+        elif op in ("-i","-r","-rx","-t","-tx","-f","-k","-m","-n"):
             # combine two part arguments with the following argument
             try:
-                if op != "-f":
+                if op != "-f": # keep support for -f being optional
                     args[i+1] = op + args[i+1]
             except IndexError:
                 raise ArgumentError
@@ -858,7 +867,7 @@ def parse_args():
             urwid_ui = False
         elif op == "-b":
             urwid_ui = 'blocky'
-        elif op == "-n":
+        elif op == "-s":
             global graph_scale
             global readable_speed
             graph_scale = BITS_SCALE
@@ -889,7 +898,21 @@ def parse_args():
             if INTERVAL_DELAY<INITIAL_DELAY:
                 INITIAL_DELAY=INTERVAL_DELAY
             interval_set = True
-            
+
+        elif op.startswith("-m"):
+            global chart_maximum
+            try:
+                chart_maximum = int(op[2:])
+            except:
+                raise ArgumentError
+
+        elif op.startswith("-n"):
+            global chart_minimum
+            try:
+                chart_minimum = int(op[2:])
+            except:
+                raise ArgumentError
+
         elif op.startswith("-rx"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[3:])
@@ -933,6 +956,9 @@ def parse_args():
     if not taps:
         raise ArgumentError
     cols.append(taps)
+
+    if chart_maximum <= chart_minimum:
+        raise ArgumentError
 
     return cols, urwid_ui, zero_files, exit_on_complete, num_colors
         
