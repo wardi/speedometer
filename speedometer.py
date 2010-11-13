@@ -57,10 +57,18 @@ INTERVAL_DELAY = 1.0 # seconds
 
 VALID_NUM_COLORS = (1, 16, 88, 256)
 
-GRAPH_MAX = 27
-GRAPH_LINES = [25,20,15,10,5]
-GRAPH_CAPTIONS = [' 1GiB\n  /s', '32MiB\n  /s', ' 1MiB\n  /s', '32KiB\n  /s', 
-    ' 1KiB\n  /s']
+DEFAULT_SCALE = [
+    (5,  ' 1KiB\n  /s'),
+    (10, '32KiB\n  /s'),
+    (15, ' 1MiB\n  /s'),
+    (20, '32MiB\n  /s'),
+    (25, ' 1GiB\n  /s'),
+    (27, None)]
+
+graph_scale = DEFAULT_SCALE
+def graph_max(): return graph_scale[-1][0]
+def graph_lines_captions(): return list(reversed(graph_scale[:-1]))
+def graph_lines(): return [x[0] for x in graph_lines_captions()]
 
 try: True # old python?
 except: False, True = 0, 1
@@ -252,7 +260,7 @@ class GraphDisplay:
            )
         
         self.last_reading = urwid.Text("",align="right")
-        scale = urwid.GraphVScale(zip(GRAPH_LINES, GRAPH_CAPTIONS), GRAPH_MAX)
+        scale = urwid.GraphVScale(graph_lines_captions(), graph_max())
         footer = self.last_reading
         graph_cols = urwid.Columns([('fixed', 5, scale), 
             self.speed_graph, ('fixed', 4, self.cagraph)],
@@ -287,7 +295,7 @@ class GraphDisplay:
         self.cagraph.set_data([
             [speed_scale(c),0],
             [0,speed_scale(a)],
-            ], GRAPH_MAX)
+            ], graph_max())
         
             
 
@@ -335,7 +343,7 @@ class SpeedGraph:
         bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
-        return bar, GRAPH_MAX, GRAPH_LINES
+        return bar, graph_max(), graph_lines()
     
     def selectable(self):
         return False
@@ -347,7 +355,7 @@ class SpeedGraph:
         
         topl = self.local_maximums(pad, left)
         yvals = [ max(self.bar[i]) for i in topl ]
-        yvals = urwid.scale_bar_values(yvals, GRAPH_MAX, maxrow)
+        yvals = urwid.scale_bar_values(yvals, graph_max(), maxrow)
         
         graphtop = self.graph
         for i,y in zip(topl, yvals):
@@ -404,7 +412,7 @@ class SpeedGraph:
 def speed_scale(s):
     if s <= 0: return 0
     x = (math.log(s) * LN_TO_LG_SCALE)
-    x = min(GRAPH_MAX, max(0, x-5))
+    x = min(graph_max(), max(0, x-5))
     return x
 
 
