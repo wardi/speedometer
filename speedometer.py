@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # speedometer.py
-# Copyright (C) 2001-2008  Ian Ward
+# Copyright (C) 2001-2010  Ian Ward
 #
 # This module is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.7"
+__version__ = "2.8"
 
 import time
 import sys
@@ -59,8 +59,8 @@ VALID_NUM_COLORS = (1, 16, 88, 256)
 
 GRAPH_MAX = 27
 GRAPH_LINES = [25,20,15,10,5]
-GRAPH_CAPTIONS = [' 1GB\n  /s', '32MB\n  /s', ' 1MB\n  /s', '32KB\n  /s', 
-    ' 1KB\n  /s']
+GRAPH_CAPTIONS = [' 1GiB\n  /s', '32MiB\n  /s', ' 1MiB\n  /s', '32KiB\n  /s', 
+    ' 1KiB\n  /s']
 
 try: True # old python?
 except: False, True = 0, 1
@@ -254,7 +254,7 @@ class GraphDisplay:
         self.last_reading = urwid.Text("",align="right")
         scale = urwid.GraphVScale(zip(GRAPH_LINES, GRAPH_CAPTIONS), GRAPH_MAX)
         footer = self.last_reading
-        graph_cols = urwid.Columns([('fixed', 4, scale), 
+        graph_cols = urwid.Columns([('fixed', 5, scale), 
             self.speed_graph, ('fixed', 4, self.cagraph)],
             dividechars = 1)
         self.top = urwid.Frame(graph_cols, footer=footer)
@@ -425,7 +425,7 @@ def readable_speed(speed):
     
     if speed == None or speed < 0: speed = 0
     
-    units = "B/s ", "KB/s", "MB/s", "GB/s", "TB/s"
+    units = "B/s ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
     step = 1L
     
     for u in units:
