@@ -430,7 +430,7 @@ def readable_speed(speed):
     
     if speed == None or speed < 0: speed = 0
     
-    units = "B/s ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
+    units = "B/s  ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
     step = 1L
     
     for u in units:
