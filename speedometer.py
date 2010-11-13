@@ -356,7 +356,7 @@ class SpeedGraph:
             label = urwid.AttrWrap(urwid.Filler(txt), 'reading')
 
             graphtop = urwid.Overlay(label, graphtop,
-                ('fixed left', pad+i-4-left), 9,
+                ('fixed left', pad+i-4-left), 10,
                 ('fixed top', max(0,y-2)), 1)
         
         return graphtop.render((maxcol, maxrow), focus)
