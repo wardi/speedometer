@@ -28,11 +28,9 @@ tap must be entered.  -c starts a new column, otherwise taps are piled
 vertically.  
 
 Taps:
-  [-f] filename [size]        display download speed [with progress bar]
-                              -f must be used if directly following another
-                              file tap without an expected size specified
-  -rx network-interface       display bytes received on network-interface
-  -tx network-interface       display bytes transmitted on network-interface
+  -f filename [size]          display download speed [with progress bar]
+  -r network-interface        display bytes received on network-interface
+  -t network-interface        display bytes transmitted on network-interface
 
 Options:
   -b                          use old blocky display instead of smoothed
@@ -45,6 +43,10 @@ Options:
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
                               instead of waiting for them to be created
+
+Note: -rx and -tx are accepted as aliases for -r and -t for compatibility 
+with earlier releases of speedometer.  -f may be also omitted for similar 
+reasons.
 """
 
 __urwid_info__ = """
@@ -828,7 +830,7 @@ def parse_args():
         op = args[i]
         if op in ("-h","--help"):
             raise ArgumentError
-        elif op in ("-i","-rx","-tx","-f","-k"):
+        elif op in ("-i","-r","-rx","-t","-tx","-f","-k"):
             # combine two part arguments with the following argument
             try:
                 if op != "-f":
@@ -888,12 +890,18 @@ def parse_args():
                 INITIAL_DELAY=INTERVAL_DELAY
             interval_set = True
             
-        elif op[:3] == "-rx":
+        elif op.startswith("-rx"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[3:])
-        elif op[:3] == "-tx":
+        elif op.startswith("-r"):
+            push_tap(tap, taps)
+            tap = NetworkTap("RX", op[2:])
+        elif op.startswith("-tx"):
             push_tap(tap, taps)
             tap = NetworkTap("TX", op[3:])
+        elif op.startswith("-t"):
+            push_tap(tap, taps)
+            tap = NetworkTap("TX", op[2:])
         elif op == "-c":
             push_tap(tap, taps)
             if not taps:
