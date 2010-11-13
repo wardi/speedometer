@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ./speedometer.py $@ -z -i 2 \
-/home/ian/some_file_or_another 33800000 -s \
+/home/ian/some_file_or_another 33800000 -S \
 0 1000 \
 100000 100000 100000 100000 \
 160000 160000 160000 160000 \

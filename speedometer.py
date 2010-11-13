@@ -848,7 +848,7 @@ def parse_args():
                 raise ArgumentError
             push_tap(tap, taps)
             tap = None
-        elif op == "-s":
+        elif op == "-S":
             # undocumented simulation option
             simargs = []
             i += 1
