@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # speedometer.py
-# Copyright (C) 2001-2010  Ian Ward
+# Copyright (C) 2001-2011  Ian Ward
 #
 # This module is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@ import re
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
-tap must be entered.  -c starts a new column, otherwise taps are piled 
-vertically.  
+tap must be entered.  -c starts a new column, otherwise taps are piled
+vertically.
 
 Taps:
   -f filename [size]          display download speed [with progress bar]
@@ -50,8 +50,8 @@ Options:
   -z                          report zero size on files that don't exist
                               instead of waiting for them to be created
 
-Note: -rx and -tx are accepted as aliases for -r and -t for compatibility 
-with earlier releases of speedometer.  -f may be also omitted for similar 
+Note: -rx and -tx are accepted as aliases for -r and -t for compatibility
+with earlier releases of speedometer.  -f may be also omitted for similar
 reasons.
 """
 
@@ -984,7 +984,7 @@ def do_simple(feed):
 
 def curve(spd):
     """Try to smooth speed fluctuations"""
-    val = [ 2, 4, 4, 3, 2, 1 ] # speed sampling relative weights
+    val = [6, 5, 4, 3, 2, 1] # speed sampling relative weights
     wtot = 0 # total weighting
     ws = 0.0 # weighted speed
     for i in range(len(val)):
