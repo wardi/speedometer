@@ -1,0 +1,79 @@
+
+
+Speedometer 2.7 - 2010-11-08
+
+ * Work better with light, dark and transparent backgrounds
+
+ * Added monochrome and 88/256 color modes
+
+ * New option to exit once a monitored download completes
+
+ * Requires Urwid 0.9.9.1 or later
+
+
+Speedometer 2.6 - 2008-05-30
+
+ * Increase scale maximum to > 1GB/s
+
+ * Hide Python traceback when user presses ^C
+
+ * Make using plain text mode when Urwid is unavailable the default
+
+ * Make blocky and smoothed modes look more similar
+
+ * Fix simulation and file progress bugs
+
+
+Speedometer 2.5 - 2007-10-20
+
+ * Use Urwid's raw_display instead of curses_display module
+
+ * Use regexp instead of find for parsing network information
+
+
+Speedometer 2.4 - 2006-04-09
+
+ * New -z option treats files that don't exist as zero length so
+   speedometer will not wait for them to be created at startup.
+
+ * Multiple file taps may now be used stacked vertically in the
+   same column.
+
+
+Speedometer 2.3 - 2006-03-08
+
+ * Graphs may now be displayed with 8 times the resolution of old blocky
+   graphs using a new UTF-8 smoothed display mode.  Requires UTF-8 capable
+   terminal in UTF-8 encoding (try uxterm) and Urwid 0.9.1 or later.
+
+ * Use math.log without base for compatibility with Python 2.1.
+
+
+Speedometer 2.2 - 2005-12-27
+
+ * Read network statistics from /proc/net/dev instead of /sbin/ifconfig.
+   Reduces CPU usage by 75% on test machine.
+   Thanks to Don Rozenberg for the patch.
+
+
+Speedometer 2.1 - 2005-11-05
+
+ * New simultaneous display of multiple graphs with options for stacking
+   graphs vertically or horizontally
+
+ * New labels to differentiate each graph
+
+ * Removed 0-32 B/s from display to make more room for higher speeds
+
+ * Fixed a wait_creation bug
+
+
+Speedometer 2.0 - 2005-10-21
+
+ * New full-console bar graph display based on Urwid 0.8.9
+
+ * Realigned graphic scale to more common units
+
+
+Note: earlier release changelogs will need to be unearthed from some
+long-forgotten svn repository
