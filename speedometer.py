@@ -124,7 +124,16 @@ def graph_max():
     return math.log(chart_maximum,2) if logarithmic_scale else chart_maximum
 
 def graph_range(): return graph_max() - graph_min()
-def graph_lines_captions(): return list(reversed(graph_scale))
+
+def graph_lines_captions():
+    s = graph_scale
+    if logarithmic_scale:
+        s = [(math.log(x, 2), cap) for x, cap in s]
+        # XXX: quick hack to make this work like it used to
+        delta = graph_min()
+        s = [(x - delta, cap) for x, cap in s]
+    return list(reversed(s))
+
 def graph_lines(): return [x[0] for x in graph_lines_captions()]
 
 URWID_IMPORTED = False
