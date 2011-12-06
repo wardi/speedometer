@@ -41,7 +41,7 @@ Options:
   -k (1|16|88|256)            set the number of colors this terminal
                               supports (default 16)
   -l                          use linear charts instead of logarithmic
-                              you will likely want to set -m as well
+                              you will VERY LIKELY want to set -m as well
   -m chart-maximum            set the maximum bytes/second displayed on
                               the chart (default 2^32)
   -n chart-minimum            set the minimum bytes/second displayed on
@@ -83,13 +83,17 @@ BITS_SCALE = [
     (22, ' 1Gib\n  /s'),
     ]
 
-linear = False # default is logarithmic
+logarithmic_scale = True
 chart_minimum = 2**5
 chart_maximum = 2**32
 
 graph_scale = DEFAULT_SCALE
-def graph_min(): return math.log(chart_minimum,2)
-def graph_max(): return math.log(chart_maximum,2)
+def graph_min():
+    return math.log(chart_minimum,2) if logarithmic_scale else chart_minimum
+
+def graph_max():
+    return math.log(chart_maximum,2) if logarithmic_scale else chart_maximum
+
 def graph_range(): return graph_max() - graph_min()
 def graph_lines_captions(): return list(reversed(graph_scale))
 def graph_lines(): return [x[0] for x in graph_lines_captions()]
@@ -430,9 +434,10 @@ class SpeedGraph:
 
 def speed_scale(s):
     if s <= 0: return 0
-    x = math.log(s, 2)
-    x = min(graph_range(), max(0, x-graph_min()))
-    return x
+    if logarithmic_scale:
+        s = math.log(s, 2)
+    s = min(graph_range(), max(0, s-graph_min()))
+    return s
 
 
 def delta_to_speed(delta):
@@ -903,8 +908,8 @@ def parse_args():
             interval_set = True
 
         elif op == "-l":
-            global linear
-            linear = True
+            global logarithmic_scale
+            logarithmic_scale = False
         elif op.startswith("-m"):
             global chart_maximum
             try:
