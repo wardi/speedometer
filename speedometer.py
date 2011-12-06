@@ -103,7 +103,7 @@ try:
         URWID_UTF8 = urwid.get_encoding_mode() == "utf8"
 except (ImportError, AttributeError):
     pass
-    
+
 
 class Speedometer:
     def __init__(self,maxlog=5):
@@ -112,10 +112,10 @@ class Speedometer:
         self.log = []
         self.start = None
         self.maxlog = maxlog
-    
+
     def get_log(self):
         return self.log
-    
+
     def update(self, bytes):
         """update(bytes) => None
         add a byte reading to the log"""
@@ -124,7 +124,7 @@ class Speedometer:
         if not self.start: self.start = reading
         self.log.append(reading)
         self.log = self.log[ - (self.maxlog+1):]
-        
+
     def delta(self, readings=0, skip=0):
         """delta(readings=0) -> time passed, byte increase
         if readings is 0, time since start is given
@@ -134,24 +134,24 @@ class Speedometer:
         assert readings <= self.maxlog, "Log is not long enough to satisfy request"
         assert skip >= 0
         if skip > 0: assert readings > 0, "Can't skip when reading all"
-        
+
         if skip > len(self.log)-1: return # not enough data
         current = self.log[-1 -skip]
-        
+
         target = None
         if readings == 0: target = self.start
-        elif len(self.log) > readings+skip: 
+        elif len(self.log) > readings+skip:
             target = self.log[-(readings+skip+1)]
         if not target: return  # not enough data
-        
+
         if target == current: return
         byte_increase = current[1]-target[1]
         time_passed = current[0]-target[0]
         return time_passed, byte_increase
-    
+
     def speed(self, *l, **d):
         d = self.delta(*l, **d)
-        if d:    
+        if d:
             return delta_to_speed(d)
 
 
@@ -173,7 +173,7 @@ class MultiGraphDisplay:
                 a.append(d)
                 self.displays.append(d)
             l.append(a)
-            
+
         graphs = urwid.Columns([urwid.Pile(a) for a in l], 1)
         graphs = urwid.AttrWrap(graphs, 'background')
         title = urwid.Text("Speedometer "+__version__)
@@ -207,7 +207,7 @@ class MultiGraphDisplay:
         ('pr:c',       '',          'dark green','standout','g11', '#fd0'),
         ('pr:cn',      'dark green','dark blue','',         '#fd0', '#bb6'),
         ]
-        
+
 
     def main(self, num_colors):
         self.loop = urwid.MainLoop(self.top, palette=self.palette,
@@ -241,19 +241,19 @@ class MultiGraphDisplay:
         except EndOfData:
             self.end_of_data()
             raise urwid.ExitMainLoop()
-        
+
     def update_readings(self):
         pending = 0
         for d in self.displays:
             if d.update_readings(): pending += 1
         return pending
-    
+
     def end_of_data(self):
         # pause for taking screenshot of simulated data
         if isinstance(time, SimulatedTime):
             while not self.loop.screen.get_input():
                 pass
-    
+
 
 class GraphDisplay:
     def __init__(self,tap, smoothed):
@@ -262,7 +262,7 @@ class GraphDisplay:
                 ['background','bar'],
                 ['background','bar'],
                 {(1,0):'bar:top'})
-            
+
             self.cagraph = urwid.BarGraph(
                 ['ca:background', 'ca:c', 'ca:a'],
                 ['ca:background', 'ca:c', 'ca:a'],
@@ -271,17 +271,17 @@ class GraphDisplay:
             self.speed_graph = SpeedGraph([
                 ('background', ' '), ('bar', ' ')],
                 ['background', 'bar'])
-            
+
             self.cagraph = urwid.BarGraph([
                 ('ca:background', ' '),
                 ('ca:c',' '),
                 ('ca:a',' '),]
            )
-        
+
         self.last_reading = urwid.Text("",align="right")
         scale = urwid.GraphVScale(graph_lines_captions(), graph_range())
         footer = self.last_reading
-        graph_cols = urwid.Columns([('fixed', 5, scale), 
+        graph_cols = urwid.Columns([('fixed', 5, scale),
             self.speed_graph, ('fixed', 4, self.cagraph)],
             dividechars = 1)
         self.top = urwid.Frame(graph_cols, footer=footer)
@@ -289,13 +289,13 @@ class GraphDisplay:
         self.spd = Speedometer(6)
         self.feed = tap.feed
         self.description = tap.description()
-    
+
     def selectable(self):
         return False
-    
+
     def render(self, size, focus=False):
         return self.top.render(size,focus)
-    
+
     def update_readings(self):
         f = self.feed()
         if f is None: raise EndOfData
@@ -304,24 +304,24 @@ class GraphDisplay:
         c = curve(self.spd) # "curved" reading
         a = self.spd.speed() # running average
         self.speed_graph.append_log(s)
-        
-        self.last_reading.set_text([ 
+
+        self.last_reading.set_text([
             ('title', [self.description, "  "]),
             ('bar:num', [readable_speed(s), " "]),
             ('ca:c:num',[readable_speed(c), " "]),
             ('ca:a:num',readable_speed(a)) ])
-        
+
         self.cagraph.set_data([
             [speed_scale(c),0],
             [0,speed_scale(a)],
             ], graph_range())
-        
-            
+
+
 
 class GraphDisplayProgress(GraphDisplay):
     def __init__(self, tap, smoothed):
         GraphDisplay.__init__(self, tap, smoothed)
-        
+
         self.spd = FileProgress(6, tap.expected_size)
         if smoothed:
             self.pb = urwid.ProgressBar('pr:n','pr:c',0,
@@ -333,7 +333,7 @@ class GraphDisplayProgress(GraphDisplay):
         pbest = urwid.Columns([self.pb,('fixed',10,self.est)], 1)
         newfoot = urwid.Pile([self.top.footer, pbest])
         self.top.footer = newfoot
-        
+
     def update_readings(self):
         GraphDisplay.update_readings(self)
 
@@ -352,30 +352,30 @@ class SpeedGraph:
             self.graph = urwid.BarGraph(attlist, hatt, satt)
         # override BarGraph's get_data
         self.graph.get_data = self.get_data
-        
+
         self.smoothed = satt is not None
-        
+
         self.log = []
         self.bar = []
-        
+
     def get_data(self, (maxcol,maxrow)):
         bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
         return bar, graph_range(), graph_lines()
-    
+
     def selectable(self):
         return False
-    
+
     def render(self, (maxcol, maxrow), focus=False):
-        
+
         left = max(0, len(self.log)-maxcol)
         pad = maxcol-(len(self.log)-left)
-        
+
         topl = self.local_maximums(pad, left)
         yvals = [ max(self.bar[i]) for i in topl ]
         yvals = urwid.scale_bar_values(yvals, graph_range(), maxrow)
-        
+
         graphtop = self.graph
         for i,y in zip(topl, yvals):
             s = self.log[ i ]
@@ -385,7 +385,7 @@ class SpeedGraph:
             graphtop = urwid.Overlay(label, graphtop,
                 ('fixed left', pad+i-4-left), 10,
                 ('fixed top', max(0,y-2)), 1)
-        
+
         return graphtop.render((maxcol, maxrow), focus)
 
     def local_maximums(self, pad, left):
@@ -394,24 +394,24 @@ class SpeedGraph:
         """
         ldist, rdist = 4,5
         l = self.log
-        if len(l) <= ldist+rdist: 
+        if len(l) <= ldist+rdist:
             return []
-        
+
         dist = ldist+rdist
         highs = []
-        
+
         for i in range(left+max(0, ldist-pad),len(l)-rdist+1):
             li = l[i]
             if li == 0: continue
             if i and l[i-1]>=li: continue
             if l[i+1]>li: continue
             highs.append((li, -i))
-        
+
         highs.sort()
         highs.reverse()
-        tag = [False]*len(l) 
+        tag = [False]*len(l)
         out = []
-        
+
         for li, i in highs:
             i=-i
             if tag[i]: continue
@@ -420,7 +420,7 @@ class SpeedGraph:
             out.append(i)
 
         return out
-        
+
     def append_log(self, s):
         x = speed_scale(s)
         o = [x]
@@ -440,7 +440,7 @@ def delta_to_speed(delta):
     time_passed, byte_increase = delta
     if time_passed <= 0: return 0
     if long(time_passed*1000) == 0: return 0
-    
+
     return long(byte_increase*1000)/long(time_passed*1000)
 
 
@@ -451,14 +451,14 @@ def readable_speed(speed):
     speed is in bytes per second
     returns a readable version of the speed given
     """
-    
+
     if speed == None or speed < 0: speed = 0
-    
+
     units = "B/s  ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
     step = 1L
-    
+
     for u in units:
-    
+
         if step > 1:
             s = "%4.2f " %(float(speed)/step)
             if len(s) <= 5: return s + u
@@ -467,9 +467,9 @@ def readable_speed(speed):
 
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
-        
+
         step = step * 1024L
-    
+
     return "%4d " % (speed/(step/1024)) + units[-1]
 
 
@@ -498,18 +498,18 @@ def readable_speed_bits(speed):
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
-    
+
 
 
 def graphic_speed(speed):
     """graphic_speed(speed) -> string
     speed is bytes per second
     returns a graphic representing given speed"""
-    
+
     if speed == None: speed = 0
-    
+
     speed_val = [0]+[int(2**(x*5.0/3)) for x in range(20)]
-    
+
     speed_gfx = [
         r"\                    ",
         r".\                   ",
@@ -533,8 +533,8 @@ def graphic_speed(speed):
         r"...:::+++###%%%///// ",
         r"...:::+++###%%%//////",
         ]
-        
-    
+
+
     for i in range(len(speed_val)-1):
         low, high = speed_val[i], speed_val[i+1]
         if speed > high: continue
@@ -562,7 +562,7 @@ def network_feed(device,rxtx):
     """
     assert rxtx in ["RX","TX"]
     r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
-    
+
     def networkfn(devre=r,rxtx=rxtx):
         f = open('/proc/net/dev')
         dev_lines = f.read()
@@ -570,15 +570,15 @@ def network_feed(device,rxtx):
         match = devre.search(dev_lines)
         if not match:
             return None
-        
+
         parts = match.group(1).split()
         if rxtx == 'RX':
             return long(parts[0])
         else:
             return long(parts[8])
-        
+
     return networkfn
-        
+
 def simulated_feed(data):
     total = 0
     adjusted_data = [0]
@@ -586,9 +586,9 @@ def simulated_feed(data):
         d = int(d)
         adjusted_data.append(d + total)
         total += d
-        
+
     def simfn(data=adjusted_data):
-        if data: 
+        if data:
             return long(data.pop(0))
         return None
     return simfn
@@ -605,13 +605,13 @@ class SimulatedTime:
 class FileProgress:
     """FileProgress monitors a file's size vs time and expected size to
     produce progress and estimated completion time readings"""
-    
+
     samples_for_estimate = 4
-    
+
     def __init__(self, maxlog, expected_size):
         """FileProgress(expected_size)
         expected_size is the file's expected size in bytes"""
-        
+
         self.expected_size = expected_size
         self.speedometer = Speedometer(maxlog)
         self.current_size = None
@@ -622,10 +622,10 @@ class FileProgress:
         """update(current_size)
         current_size is the current file size
         update will record the current size and time"""
-        
+
         self.current_size = current_size
         self.speedometer.update(self.current_size)
-        
+
     def progress(self):
         """progress() -> (current size, expected size)
         current size will be None until update is called"""
@@ -635,29 +635,29 @@ class FileProgress:
     def completion_estimate(self):
         """completion_estimate() -> estimated seconds remaining
         will return None if not enough data is available"""
-        
+
         d = self.speedometer.delta(self.samples_for_estimate)
         if not d: return None  # not enough readings
         (seconds,bytes) = d
         if bytes <= 0: return None  # currently stalled
-        remaining = self.expected_size - self.current_size        
+        remaining = self.expected_size - self.current_size
         if remaining <= 0: return 0  # all done -- no time remaining
-        
+
         seconds_left = float(remaining)*seconds/bytes
 
         return seconds_left
-    
+
     def average_speed(self):
         """average_speed() -> bytes per second since start
         will return None if not enough data"""
         return self.speedometer.speed()
-    
+
     def current_speed(self):
         """current_speed() -> latest bytes per second reading
         will return None if not enough data"""
         return self.speedometer.speed(1)
 
-    
+
 
 def graphic_progress(progress, columns):
     """graphic_progress(progress, columns) -> string
@@ -684,7 +684,7 @@ def time_as_units(seconds):
 
     # (multiplicative factor, suffix)
     units = (1,"s"), (60,"m"), (60,"h"), (24,"d"), (7,"w"), (52,"y")
-    
+
     scale = 1L
     topunit = -1
     # find the top unit to use
@@ -692,7 +692,7 @@ def time_as_units(seconds):
         if seconds / (scale*mul) < 1: break
         topunit = topunit+1
         scale = scale * mul
-    
+
     # build the list reading backwards from top unit
     out = []
     for i in range(topunit, -1, -1):
@@ -701,10 +701,10 @@ def time_as_units(seconds):
         seconds = seconds - value * scale
         scale = scale / mul
         out.append((value, suf))
-        
-    return out    
-    
-    
+
+    return out
+
+
 def readable_time(seconds, columns=None):
     """readable_time(seconds, columns=None) -> string
     return the seconds as a readable string
@@ -717,7 +717,7 @@ def readable_time(seconds, columns=None):
         new_out = new_out + `value` + suf
         if columns and len(new_out) > columns: break
         out = new_out
-    
+
     return out
 
 
@@ -739,30 +739,30 @@ Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
 """ % (sys.version_info[:2] + (["NO","yes"][URWID_IMPORTED],) +
         (["NO","yes"][URWID_UTF8],)))
         return
-    
+
     if zero_files:
         for c in cols:
             a = []
             for tap in c:
                 if hasattr(tap, 'report_zero'):
                     tap.report_zero()
-        
+
     try:
         # wait for every tap to be able to read
         wait_all(cols)
     except KeyboardInterrupt:
         return
-            
+
     # plain-text mode
     if not urwid_ui:
         [[tap]] = cols
-        
+
         if tap.ftype == 'file_exp':
             do_progress(tap.feed, tap.expected_size, exit_on_complete)
         else:
             do_simple(tap.feed)
         return
-        
+
     do_display(cols, urwid_ui, exit_on_complete, num_colors)
 
 
@@ -777,25 +777,25 @@ class FileTap:
         self.file_name = name
         self.feed = file_size_feed(name)
         self.wait = True
-    
+
     def set_expected_size(self, size):
         self.expected_size = long(size)
         self.ftype = 'file_exp'
 
     def report_zero(self):
         self.wait = False
-        
+
     def description(self):
         return "FILE: "+ self.file_name
-        
+
     def wait_creation(self):
         if not self.wait:
             return
 
         if not os.path.exists(self.file_name):
-            sys.stdout.write("Waiting for '%s' to be created...\n" 
+            sys.stdout.write("Waiting for '%s' to be created...\n"
                 % self.file_name)
-            while not os.path.exists(self.file_name): 
+            while not os.path.exists(self.file_name):
                 time.sleep(1)
 
 class NetworkTap:
@@ -803,7 +803,7 @@ class NetworkTap:
         self.ftype = rxtx
         self.interface = interface
         self.feed = network_feed(interface, rxtx)
-    
+
     def description(self):
         return self.ftype+": "+self.interface
 
@@ -811,7 +811,7 @@ class NetworkTap:
         if self.feed() is None:
             sys.stdout.write("Waiting for network statistics from "
                 "interface '%s'...\n" % self.interface)
-            while self.feed() == None: 
+            while self.feed() == None:
                 time.sleep(1)
 
 
@@ -836,7 +836,7 @@ def parse_args():
     def push_tap(tap, taps):
         if tap is None: return
         taps.append(tap)
-    
+
     i = 0
     while i < len(args):
         op = args[i]
@@ -886,18 +886,18 @@ def parse_args():
                 assert num_colors in VALID_NUM_COLORS
             except:
                 raise ArgumentError
-            colors_set = True 
+            colors_set = True
 
         elif op[:2] == "-i":
             if interval_set: raise ArgumentError
-            
+
             global INTERVAL_DELAY
             global INITIAL_DELAY
             try:
                 INTERVAL_DELAY = float(op[2:])
             except:
                 raise ArgumentError
-                
+
             if INTERVAL_DELAY<INITIAL_DELAY:
                 INITIAL_DELAY=INTERVAL_DELAY
             interval_set = True
@@ -949,16 +949,16 @@ def parse_args():
                 raise ArgumentError
         else:
             raise ArgumentError
-        
+
         i += 1
 
     if urwid_ui and not URWID_IMPORTED:
         raise ArgumentError
-    
+
     push_tap(tap, taps)
     if not urwid_ui and (len(taps)>1 or cols):
         raise ArgumentError
-            
+
     if not taps:
         raise ArgumentError
     cols.append(taps)
@@ -967,7 +967,7 @@ def parse_args():
         raise ArgumentError
 
     return cols, urwid_ui, zero_files, exit_on_complete, num_colors
-        
+
 
 def do_simple(feed):
     try:
@@ -995,21 +995,21 @@ def curve(spd):
     ws = 0.0 # weighted speed
     for i in range(len(val)):
         d = spd.delta(1,i)
-        if d==None: 
+        if d==None:
             break # ran out of data
         t, b = d
         v = val[i]
         wtot += v
         ws += float(b)*v/t
     return delta_to_speed((wtot, ws))
-    
+
 
 def show(s, c, a, out = sys.stdout.write):
     out(readable_speed(s))
     out("  c:" + readable_speed(c))
     out("  A:" + readable_speed(a))
     out("  (" + graphic_speed(s)+")")
-    out('\n')    
+    out('\n')
 
 
 def do_progress(feed, size, exit_on_complete):
@@ -1042,10 +1042,10 @@ def wait_all(cols):
         for tap in c:
             tap.wait_creation()
 
-    
+
 if __name__ == "__main__":
     try:
         console()
     except KeyboardInterrupt, err:
         pass
-    
+
