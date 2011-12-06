@@ -68,26 +68,55 @@ INTERVAL_DELAY = 1.0 # seconds
 
 VALID_NUM_COLORS = (1, 16, 88, 256)
 
-DEFAULT_SCALE = [
-    (5,  ' 1KiB\n  /s'),
-    (10, '32KiB\n  /s'),
-    (15, ' 1MiB\n  /s'),
-    (20, '32MiB\n  /s'),
-    (25, ' 1GiB\n  /s'),
-    ]
-BITS_SCALE = [
-    (2,  ' 1Kib\n  /s'),
-    (7,  '32Kib\n  /s'),
-    (12, ' 1Mib\n  /s'),
-    (17, '32Mib\n  /s'),
-    (22, ' 1Gib\n  /s'),
-    ]
+# FIXME: these globals are becoming a pain
+# time for more encapsulation, maybe even per-chart settings?
 
 logarithmic_scale = True
+units_per_second = 'bytes'
 chart_minimum = 2**5
 chart_maximum = 2**32
 
-graph_scale = DEFAULT_SCALE
+graph_scale = None
+def update_scale():
+    """
+    parse_args has set chart min/max, units_per_second and logarithmic_scale
+    use those settings to generate a scale of values for the LHS of the graph
+    """
+    global graph_scale
+    if logarithmic_scale:
+        # be lazy and just use the same scale we always have
+        predefined = {
+            'bytes': [
+                (2**10,  ' 1KiB\n  /s'),
+                (2**15, '32KiB\n  /s'),
+                (2**20, ' 1MiB\n  /s'),
+                (2**25, '32MiB\n  /s'),
+                (2**30, ' 1GiB\n  /s'),
+            ], 'bits': [
+                (2**7,  ' 1Kib\n  /s'),
+                (2**12,  '32Kib\n  /s'),
+                (2**17, ' 1Mib\n  /s'),
+                (2**22, '32Mib\n  /s'),
+                (2**27, ' 1Gib\n  /s'),
+            ]}
+        graph_scale = [(s, label) for s, label in
+            predefined[units_per_second] if chart_minimum < s < chart_maximum]
+        return
+
+    # linear, we need to generate one
+    granularity = math.log(graph_range(), 2)
+    granularity -= 2 # magic number, creates at least 4 lines on the scale
+    granularity = 2**int(granularity) # only want proper powers of two
+
+    n, r = divmod(chart_minimum, granularity)
+    n = n * granularity + (granularity if r else 0)
+    graph_scale = []
+    while n < chart_maximum:
+        graph_scale.append((n, readable_speed(n)))
+        n += granularity
+
+
+
 def graph_min():
     return math.log(chart_minimum,2) if logarithmic_scale else chart_minimum
 
@@ -745,6 +774,8 @@ Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
         (["NO","yes"][URWID_UTF8],)))
         return
 
+    update_scale()
+
     if zero_files:
         for c in cols:
             a = []
@@ -876,10 +907,10 @@ def parse_args():
         elif op == "-b":
             urwid_ui = 'blocky'
         elif op == "-s":
-            global graph_scale
             global readable_speed
-            graph_scale = BITS_SCALE
+            global units_per_second
             readable_speed = readable_speed_bits
+            units_per_second = 'bits'
         elif op == "-x":
             exit_on_complete = True
         elif op == "-z":
