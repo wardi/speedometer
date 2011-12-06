@@ -40,6 +40,8 @@ Options:
   -i interval-in-seconds      eg. "5" or "0.25"   default: "1"
   -k (1|16|88|256)            set the number of colors this terminal
                               supports (default 16)
+  -l                          use linear charts instead of logarithmic
+                              you will likely want to set -m as well
   -m chart-maximum            set the maximum bytes/second displayed on
                               the chart (default 2^32)
   -n chart-minimum            set the minimum bytes/second displayed on
@@ -81,6 +83,7 @@ BITS_SCALE = [
     (22, ' 1Gib\n  /s'),
     ]
 
+linear = False # default is logarithmic
 chart_minimum = 2**5
 chart_maximum = 2**32
 
@@ -899,6 +902,9 @@ def parse_args():
                 INITIAL_DELAY=INTERVAL_DELAY
             interval_set = True
 
+        elif op == "-l":
+            global linear
+            linear = True
         elif op.startswith("-m"):
             global chart_maximum
             try:
