@@ -1,4 +1,24 @@
 
+Speedometer 2.8 - TBD
+
+ * Add a linear scale option: -l.  Best used in combination with
+   -m (and possibly -n) to customize the range to be displayed
+   Thanks to jukie.net for sponsoring this feature
+
+ * Replace silly "curved" reading with a weighted moving average
+
+ * New option to disply all values in bits per second: -s
+
+ * New options to set minumum (-n) and maximum (-m) values
+   displayed on the graphs in bytes/s.
+   Defaults are -n 32 and -m 2**32
+
+ * Accept shortened versions of -rx and -tx: -r and -t
+   My intent is to drop use of the original forms in 3.0 and add
+   --long-versions of all options
+
+ * Use IEC notation of sizes MiB, GiB etc.
+
 
 Speedometer 2.7 - 2010-11-08
 
