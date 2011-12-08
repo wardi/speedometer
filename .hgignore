@@ -1,0 +1,6 @@
+urwid
+throwaway
+dist
+Speedometer.egg-info
+build
+.*.pyc
