@@ -1,5 +1,5 @@
 
-Speedometer 2.8 - TBD
+Speedometer 2.8 - 2011-12-08
 
  * Add a linear scale option: -l.  Best used in combination with
    -m (and possibly -n) to customize the range to be displayed
@@ -18,6 +18,8 @@ Speedometer 2.8 - TBD
    --long-versions of all options
 
  * Use IEC notation of sizes MiB, GiB etc.
+
+ * Install script as both speedometer.py and speedometer
 
 
 Speedometer 2.7 - 2010-11-08
