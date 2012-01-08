@@ -97,5 +97,16 @@ Speedometer 2.0 - 2005-10-21
  * Realigned graphic scale to more common units
 
 
-Note: earlier release changelogs will need to be unearthed from some
-long-forgotten svn repository
+Speedometer 1.4 - 2003-07-18
+
+ * New average and "smoothed" readings added
+
+
+Speedometer 1.3 - 2003-05-19
+
+ * New -i option for changing the refresh interval
+
+
+Speedometer 1.2 - 2003-03-21
+
+ * Initial public release
