@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # speedometer.py
-# Copyright (C) 2001-2011  Ian Ward
+# Copyright (C) 2001-2012  Ian Ward
 #
 # This module is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.8"
+__version__ = "2.9"
 
 import time
 import sys
@@ -200,8 +200,8 @@ class Speedometer:
 class EndOfData(Exception):
     pass
 
-class MultiGraphDisplay:
-    def __init__(self, cols, urwid_ui, exit_on_complete):
+class MultiGraphDisplay(object):
+    def __init__(self, cols, urwid_ui, exit_on_complete, shiny_colors):
         smoothed = urwid_ui == "smoothed"
         self.displays = []
         l = []
@@ -212,16 +212,18 @@ class MultiGraphDisplay:
                     d = GraphDisplayProgress(tap, smoothed)
                 else:
                     d = GraphDisplay(tap, smoothed)
+                if shiny_colors:
+                    d = ShinyMap(d, shiny_colors)
                 a.append(d)
                 self.displays.append(d)
             l.append(a)
 
         graphs = urwid.Columns([urwid.Pile(a) for a in l], 1)
         graphs = urwid.AttrWrap(graphs, 'background')
-        title = urwid.Text("Speedometer "+__version__)
+        title = urwid.Text(" Speedometer "+__version__)
         title = urwid.AttrWrap(urwid.Filler(title), 'title')
         self.top = urwid.Overlay(title, graphs,
-            ('fixed left', 5), 16, ('fixed top', 0), 1)
+            ('fixed left', 5), 17, ('fixed top', 0), 1)
 
         self.urwid_ui = urwid_ui
         self.exit_on_complete = exit_on_complete
@@ -229,21 +231,21 @@ class MultiGraphDisplay:
     palette = [
         # name,        16-color fg, bg,         mono fg,    88/256-color fg, bg
         # main bar graph
-        ('background', 'dark gray', '',         '',         '#008', '#ddb',),
-        ('bar:top',    'dark cyan', '',         '',         '#488', '#ddb'),
-        ('bar',        '',          'dark cyan','standout', '#008', '#488'),
-        ('bar:num',    '',          '',         '',         '#066', '#ddb'),
+        ('background', 'dark gray', '',         '',         'g20', 'g70'),
+        ('bar:top',    'dark cyan', '',         '',         '#488', ''),
+        ('bar',        '',          'dark cyan','standout', '',     '#488'),
+        ('bar:num',    '',          '',         '',         '#066', 'g70'),
         # latest "curved" + average bar graph at right side
-        ('ca:background', '',       '',         '',         'g66',  '#ddb'),
-        ('ca:c:top',   'dark blue', '',         '',         '#66d', '#ddb'),
-        ('ca:c',       '',          'dark blue','standout', 'g66',  '#66d'),
-        ('ca:c:num',   'light blue','',         '',         '#66d', '#ddb'),
-        ('ca:a:top',   'light gray','',         '',         '#6b6', '#ddb'),
-        ('ca:a',       '',          'light gray','standout','g66',  '#6b6'),
-        ('ca:a:num',   'light gray','',          'bold',    '#6b6', '#ddb'),
+        ('ca:background', '',       '',         '',         '',     ''),
+        ('ca:c:top',   'dark blue', '',         '',         '#66d', ''),
+        ('ca:c',       '',          'dark blue','standout', '',     '#66d'),
+        ('ca:c:num',   'light blue','',         '',         '#006', 'g70'),
+        ('ca:a:top',   'light gray','',         '',         '#6b6', ''),
+        ('ca:a',       '',          'light gray','standout','',     '#6b6'),
+        ('ca:a:num',   'light gray','',          'bold',    '#060', 'g70'),
         # text headings and numeric values displayed
-        ('title',      '',          '',   'underline,bold', '#000', '#ddb'),
-        ('reading',    '',          '',         '',         '#886', '#ddb'),
+        ('title',      '',          '',   'underline,bold', '#fff,bold', '#488'),
+        ('reading',    '',          '',         '',         '#886', 'g70'),
         # progress bar
         ('pr:n',       '',          'dark blue','',         'g11', '#bb6'),
         ('pr:c',       '',          'dark green','standout','g11', '#fd0'),
@@ -287,7 +289,7 @@ class MultiGraphDisplay:
     def update_readings(self):
         pending = 0
         for d in self.displays:
-            if d.update_readings(): pending += 1
+            if d.base_widget.update_readings(): pending += 1
         return pending
 
     def end_of_data(self):
@@ -297,7 +299,7 @@ class MultiGraphDisplay:
                 pass
 
 
-class GraphDisplay:
+class GraphDisplay(urwid.WidgetWrap):
     def __init__(self,tap, smoothed):
         if smoothed:
             self.speed_graph = SpeedGraph(
@@ -331,12 +333,7 @@ class GraphDisplay:
         self.spd = Speedometer(6)
         self.feed = tap.feed
         self.description = tap.description()
-
-    def selectable(self):
-        return False
-
-    def render(self, size, focus=False):
-        return self.top.render(size,focus)
+        super(GraphDisplay, self).__init__(self.top)
 
     def update_readings(self):
         f = self.feed()
@@ -771,7 +768,7 @@ class ArgumentError(Exception):
 def console():
     """Console mode"""
     try:
-        cols, urwid_ui, zero_files, exit_on_complete, num_colors = parse_args()
+        cols, urwid_ui, zero_files, exit_on_complete, num_colors, shiny_colors = parse_args()
     except ArgumentError:
         sys.stderr.write(__usage__)
         if not URWID_IMPORTED:
@@ -808,11 +805,11 @@ Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
             do_simple(tap.feed)
         return
 
-    do_display(cols, urwid_ui, exit_on_complete, num_colors)
+    do_display(cols, urwid_ui, exit_on_complete, num_colors, shiny_colors)
 
 
-def do_display(cols, urwid_ui, exit_on_complete, num_colors):
-    mg = MultiGraphDisplay(cols, urwid_ui, exit_on_complete)
+def do_display(cols, urwid_ui, exit_on_complete, num_colors, shiny_colors):
+    mg = MultiGraphDisplay(cols, urwid_ui, exit_on_complete, shiny_colors)
     mg.main(num_colors)
 
 
@@ -875,6 +872,7 @@ def parse_args():
     exit_on_complete = False
     num_colors = 16
     colors_set = False
+    shiny_colors = None
     cols = []
     taps = []
 
@@ -931,6 +929,8 @@ def parse_args():
                 assert num_colors in VALID_NUM_COLORS
             except:
                 raise ArgumentError
+            if num_colors>16:
+                shiny_colors = num_colors
             colors_set = True
 
         elif op[:2] == "-i":
@@ -1011,7 +1011,7 @@ def parse_args():
     if chart_maximum <= chart_minimum:
         raise ArgumentError
 
-    return cols, urwid_ui, zero_files, exit_on_complete, num_colors
+    return cols, urwid_ui, zero_files, exit_on_complete, num_colors, shiny_colors
 
 
 def do_simple(feed):
@@ -1086,6 +1086,66 @@ def wait_all(cols):
     for c in cols:
         for tap in c:
             tap.wait_creation()
+
+def shiny(y):
+    """
+    return a value between 0 (dark) and 1 (bright) for a given y position
+    between 0 (top) and 1 (bottom) to create a "shiny" background effect
+    """
+    gamma = 1 - (4 * (y - 0.25)) ** 2 if y < 0.5 else (2*y - 1) ** 2
+    return max(0, min(1, (gamma - 0.2)*1.2))
+
+class ShinyMap(urwid.WidgetPlaceholder):
+    def __init__(self, w, colors):
+        assert colors in (88, 256)
+        self._colors = colors
+        super(ShinyMap, self).__init__(w)
+        self._shiny_cache = []
+        self._shiny_cache_maxrow = None
+
+    def _rebuild_shiny_cache(self, maxrow):
+        prev_gray = None
+        if self._shiny_cache_maxrow == maxrow:
+            return
+        self._shiny_cache = []
+        self._shiny_cache_maxrow = maxrow
+        for y in range(maxrow):
+            gamma = shiny(1 - (y+0.5)/maxrow)
+            if self._colors == 256:
+                gamma = gamma * 25 + 10
+            else:
+                gamma = gamma * 45
+            spec = urwid.AttrSpec('g70', 'g%d' % gamma, self._colors)
+            gray = spec.background
+            if prev_gray == gray:
+                amap, num = self._shiny_cache[-1]
+                self._shiny_cache[-1] = amap, num + 1
+                continue
+            prev_gray = gray
+            amap = {
+                'background': spec,
+                'bar:top': urwid.AttrSpec('#488', gray, self._colors),
+                'reading': spec,
+                'ca:background': spec,
+                'ca:c:top': urwid.AttrSpec('#66d', gray, self._colors),
+                'ca:a:top': urwid.AttrSpec('#6b6', gray, self._colors),
+                }
+            self._shiny_cache.append((amap, 1))
+
+    def render(self, size, focus=False):
+        maxcol, maxrow = size
+        canv = super(ShinyMap, self).render(size, focus)
+        self._rebuild_shiny_cache(maxrow)
+        slivers = []
+        y = 0
+        for amap, run in self._shiny_cache:
+            c = urwid.CompositeCanvas(canv)
+            c.trim(y, run)
+            y = y + run
+            c.fill_attr_apply(amap)
+            slivers.append((c, None, False))
+        return urwid.CanvasCombine(slivers)
+
 
 
 if __name__ == "__main__":
