@@ -13,14 +13,15 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.9"
-
 import time
 import sys
 import os
 import string
 import math
 import re
+import pkg_resources
+
+__version__ = pkg_resources.get_distribution('speedometer').version
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
