@@ -21,6 +21,7 @@ import os
 import string
 import math
 import re
+import psutil
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -604,18 +605,12 @@ def network_feed(device,rxtx):
     r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
 
     def networkfn(devre=r,rxtx=rxtx):
-        f = open('/proc/net/dev')
-        dev_lines = f.read()
-        f.close()
-        match = devre.search(dev_lines)
-        if not match:
-            return None
-
-        parts = match.group(1).split()
-        if rxtx == 'RX':
-            return long(parts[0])
+     if rxtx == 'RX':
+            val=psutil.net_io_counters(pernic=True)[device].bytes_recv
         else:
-            return long(parts[8])
+            val=psutil.net_io_counters(pernic=True)[device].bytes_sent
+
+        return long(val)
 
     return networkfn
 
