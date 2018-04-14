@@ -22,6 +22,7 @@ import string
 import math
 import re
 import psutil
+import six
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -76,6 +77,10 @@ logarithmic_scale = True
 units_per_second = 'bytes'
 chart_minimum = 2**5
 chart_maximum = 2**32
+
+if six.PY3:
+    def long(*args,**kwargs):
+        return int(*args,**kwargs)
 
 graph_scale = None
 def update_scale():
@@ -398,7 +403,8 @@ class SpeedGraph:
         self.log = []
         self.bar = []
 
-    def get_data(self, (maxcol,maxrow)):
+    def get_data(self, max_col_row):
+        maxcol, maxrow = max_col_row
         bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
@@ -407,8 +413,8 @@ class SpeedGraph:
     def selectable(self):
         return False
 
-    def render(self, (maxcol, maxrow), focus=False):
-
+    def render(self, max_col_row, focus=False):
+        maxcol, maxrow = max_col_row
         left = max(0, len(self.log)-maxcol)
         pad = maxcol-(len(self.log)-left)
 
@@ -443,8 +449,8 @@ class SpeedGraph:
         for i in range(left+max(0, ldist-pad),len(l)-rdist+1):
             li = l[i]
             if li == 0: continue
-            if i and l[i-1]>=li: continue
-            if l[i+1]>li: continue
+            if i and l[i-1] != None and l[i-1]>=li: continue
+            if li is None or l[i+1]>li: continue
             highs.append((li, -i))
 
         highs.sort()
@@ -469,7 +475,7 @@ class SpeedGraph:
 
 
 def speed_scale(s):
-    if s <= 0: return 0
+    if s is None or s <= 0: return 0
     if logarithmic_scale:
         s = math.log(s, 2)
     s = min(graph_range(), max(0, s-graph_min()))
@@ -496,7 +502,7 @@ def readable_speed(speed):
     if speed == None or speed < 0: speed = 0
 
     units = "B/s  ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
-    step = 1L
+    step = long(1)
 
     for u in units:
 
@@ -509,7 +515,7 @@ def readable_speed(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * 1024L
+        step = step * long(1024)
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -522,7 +528,7 @@ def readable_speed_bits(speed):
 
     speed = speed * 8
     units = "b/s  ", "Kib/s", "Mib/s", "Gib/s", "Tib/s"
-    step = 1L
+    step = long(1)
 
     for u in units:
 
@@ -535,7 +541,7 @@ def readable_speed_bits(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * 1024L
+        step = step * long(1024)
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -605,7 +611,7 @@ def network_feed(device,rxtx):
     r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
 
     def networkfn(devre=r,rxtx=rxtx):
-     if rxtx == 'RX':
+        if rxtx == 'RX':
             val=psutil.net_io_counters(pernic=True)[device].bytes_recv
         else:
             val=psutil.net_io_counters(pernic=True)[device].bytes_sent
@@ -720,7 +726,7 @@ def time_as_units(seconds):
     # (multiplicative factor, suffix)
     units = (1,"s"), (60,"m"), (60,"h"), (24,"d"), (7,"w"), (52,"y")
 
-    scale = 1L
+    scale = long(1)
     topunit = -1
     # find the top unit to use
     for mul, suf in units:
@@ -749,7 +755,7 @@ def readable_time(seconds, columns=None):
     for value, suf in time_as_units(seconds):
         new_out = out
         if out: new_out = new_out + ' '
-        new_out = new_out + `value` + suf
+        new_out = new_out + value + suf
         if columns and len(new_out) > columns: break
         out = new_out
 
@@ -1146,6 +1152,6 @@ class ShinyMap(urwid.WidgetPlaceholder):
 if __name__ == "__main__":
     try:
         console()
-    except KeyboardInterrupt, err:
+    except KeyboardInterrupt as err:
         pass
 
