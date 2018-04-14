@@ -34,7 +34,7 @@ setup_d = {
     'scripts': ['speedometer.py'],
     'entry_points': {
         'console_scripts': ['speedometer = speedometer:console'],},
-    'install_requires': ['urwid >= 0.9.9.1', 'psutil'],
+    'install_requires': ['urwid >= 0.9.9.1', 'psutil', 'six'],
     'license':"LGPL",
     'keywords':"network bandwidth monitor system speed download file progress console",
     'platforms':"Linux",
