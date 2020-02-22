@@ -397,7 +397,8 @@ class SpeedGraph:
         self.log = []
         self.bar = []
 
-    def get_data(self, (maxcol,maxrow)):
+    def get_data(self, maxsize):
+        (maxcol,maxrow) = maxsize
         bar = self.bar[-maxcol:]
         if len(bar) < maxcol:
             bar = [[0]]*(maxcol-len(bar)) + bar
@@ -406,8 +407,9 @@ class SpeedGraph:
     def selectable(self):
         return False
 
-    def render(self, (maxcol, maxrow), focus=False):
+    def render(self, maxsize, focus=False):
 
+        (maxcol, maxrow) = maxsize
         left = max(0, len(self.log)-maxcol)
         pad = maxcol-(len(self.log)-left)
 
@@ -468,7 +470,7 @@ class SpeedGraph:
 
 
 def speed_scale(s):
-    if s <= 0: return 0
+    if not s or s <= 0: return 0
     if logarithmic_scale:
         s = math.log(s, 2)
     s = min(graph_range(), max(0, s-graph_min()))
@@ -479,9 +481,9 @@ def delta_to_speed(delta):
     """delta_to_speed(delta) -> speed in bytes per second"""
     time_passed, byte_increase = delta
     if time_passed <= 0: return 0
-    if long(time_passed*1000) == 0: return 0
+    if int(time_passed*1000) == 0: return 0
 
-    return long(byte_increase*1000)/long(time_passed*1000)
+    return int(byte_increase*1000)/int(time_passed*1000)
 
 
 
@@ -495,7 +497,7 @@ def readable_speed(speed):
     if speed == None or speed < 0: speed = 0
 
     units = "B/s  ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
-    step = 1L
+    step = 1
 
     for u in units:
 
@@ -508,7 +510,7 @@ def readable_speed(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * 1024L
+        step = step * 1024
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -521,7 +523,7 @@ def readable_speed_bits(speed):
 
     speed = speed * 8
     units = "b/s  ", "Kib/s", "Mib/s", "Gib/s", "Tib/s"
-    step = 1L
+    step = 1
 
     for u in units:
 
@@ -534,7 +536,7 @@ def readable_speed_bits(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * 1024L
+        step = step * 1024
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -613,9 +615,9 @@ def network_feed(device,rxtx):
 
         parts = match.group(1).split()
         if rxtx == 'RX':
-            return long(parts[0])
+            return int(parts[0])
         else:
-            return long(parts[8])
+            return int(parts[8])
 
     return networkfn
 
@@ -629,7 +631,7 @@ def simulated_feed(data):
 
     def simfn(data=adjusted_data):
         if data:
-            return long(data.pop(0))
+            return int(data.pop(0))
         return None
     return simfn
 
@@ -725,7 +727,7 @@ def time_as_units(seconds):
     # (multiplicative factor, suffix)
     units = (1,"s"), (60,"m"), (60,"h"), (24,"d"), (7,"w"), (52,"y")
 
-    scale = 1L
+    scale = 1
     topunit = -1
     # find the top unit to use
     for mul, suf in units:
@@ -754,7 +756,7 @@ def readable_time(seconds, columns=None):
     for value, suf in time_as_units(seconds):
         new_out = out
         if out: new_out = new_out + ' '
-        new_out = new_out + `value` + suf
+        new_out = new_out + repr(value) + suf
         if columns and len(new_out) > columns: break
         out = new_out
 
@@ -821,7 +823,7 @@ class FileTap:
         self.wait = True
 
     def set_expected_size(self, size):
-        self.expected_size = long(size)
+        self.expected_size = int(size)
         self.ftype = 'file_exp'
 
     def report_zero(self):
@@ -1059,7 +1061,7 @@ def show(s, c, a, out = sys.stdout.write):
 
 def do_progress(feed, size, exit_on_complete):
     try:
-        fp = FileProgress(4, long(size))
+        fp = FileProgress(4, int(size))
         out = sys.stdout.write
 
         f = feed()
@@ -1151,6 +1153,6 @@ class ShinyMap(urwid.WidgetPlaceholder):
 if __name__ == "__main__":
     try:
         console()
-    except KeyboardInterrupt, err:
+    except KeyboardInterrupt as err:
         pass
 
