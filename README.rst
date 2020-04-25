@@ -1,6 +1,8 @@
 Speedometer
 ===========
 
+*Speedometer is looking for a maintainer*. Please open a ticket on github if you believe you could help maintain this project.
+
 Measure and display the rate of data across a network connection or data being stored in a file.
 
 * `Speedometer Home Page <http://excess.org/speedometer/>`_
