@@ -23,6 +23,9 @@ import math
 import re
 import psutil
 import six
+import threading
+import subprocess
+import select
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -33,6 +36,7 @@ Taps:
   -f filename [size]          display download speed [with progress bar]
   -r network-interface        display bytes received on network-interface
   -t network-interface        display bytes transmitted on network-interface
+  -d command                  display bytes received from running shell command standard output
   -c                          start a new column for following tap arguments
 
 Options:
@@ -260,8 +264,7 @@ class MultiGraphDisplay(object):
 
 
     def main(self, num_colors):
-        self.loop = urwid.MainLoop(self.top, palette=self.palette,
-            unhandled_input=self.unhandled_input)
+        self.loop = urwid.MainLoop(self.top, palette=self.palette, unhandled_input=self.unhandled_input)
         self.loop.screen.set_terminal_properties(colors=num_colors)
 
         try:
@@ -276,6 +279,8 @@ class MultiGraphDisplay(object):
     def unhandled_input(self, key):
         "Exit on Q or ESC"
         if key in ('q', 'Q', 'esc'):
+            SubprocessJob.stop_job()
+            StdinJob.stop_job()
             raise urwid.ExitMainLoop()
 
     def update_callback(self, *args):
@@ -603,36 +608,190 @@ def file_size_feed(filename):
             return 0
     return sizefn
 
-def network_feed(device,rxtx):
-    """network_feed(device,rxtx) -> function that returns given device stream speed
-    rxtx is "RX" or "TX"
-    """
-    assert rxtx in ["RX","TX"]
-    r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
+class NetworkFeed:
 
-    def networkfn(devre=r,rxtx=rxtx):
-        if rxtx == 'RX':
-            val=psutil.net_io_counters(pernic=True)[device].bytes_recv
+    @classmethod
+    def network_feed(cls, device, rxtx):
+        """network_feed(device,rxtx) -> function that returns given device stream speed
+        rxtx is "RX" or "TX"
+        """
+        assert rxtx in ["RX","TX"]
+
+        r = re.compile(r"^\s*" + re.escape(device) + r":(.*)$", re.MULTILINE)
+
+        def networkfn(devre=r,rxtx=rxtx):
+            if device not in psutil.net_if_addrs().keys():
+                sys.stderr.write("Network interface %s is not available\n\n" % device)
+                sys.exit(1)
+
+            if rxtx == 'RX':
+                val=psutil.net_io_counters(pernic=True)[device].bytes_recv
+            else:
+                val=psutil.net_io_counters(pernic=True)[device].bytes_sent
+
+            return long(val)
+
+        return networkfn
+
+
+class SubProcessFeed:
+    buffer_current_size = 1
+    is_running = False
+    cmd = None
+
+    @classmethod
+    def stdinfn(cls, *args, **kwargs):
+        if cls.is_running:
+            return cls.buffer_current_size
         else:
-            val=psutil.net_io_counters(pernic=True)[device].bytes_sent
+            cls.is_running = True
+            cls.thread = threading.Thread(target=SubprocessJob.run_job, args=(cls.cmd ,))
+            cls.thread.start()
+            return 0
 
-        return long(val)
+    @classmethod
+    def file_size_feed(cls):
+        return cls.stdinfn
 
-    return networkfn
+    @classmethod
+    def set_command(cls, cmd):
+        cls.cmd = cmd
 
-def simulated_feed(data):
-    total = 0
-    adjusted_data = [0]
-    for d in data:
-        d = int(d)
-        adjusted_data.append(d + total)
-        total += d
+    @classmethod
+    def set_buffer_size(cls, size):
+        cls.buffer_current_size = size
 
-    def simfn(data=adjusted_data):
-        if data:
-            return long(data.pop(0))
-        return None
-    return simfn
+    @classmethod
+    def get_buffer_size(cls):
+        return cls.buffer_current_size
+
+
+class StdinFeed:
+    buffer_current_size = 0
+    is_running = False
+
+    @classmethod
+    def stdinfn(cls, *args, **kwargs):
+        if cls.is_running:
+            return cls.buffer_current_size
+        else:
+            cls.is_running = True
+            cls.thread = threading.Thread(target=StdinJob.run_job)
+            cls.thread.start()
+            return 0
+
+    @classmethod
+    def file_size_feed(cls):
+        return cls.stdinfn
+
+    @classmethod
+    def set_buffer_size(cls, size):
+        cls.buffer_current_size = size
+
+    @classmethod
+    def get_buffer_size(cls):
+        return cls.buffer_current_size
+
+
+class SubprocessJob:
+    current_job_process = None
+    current_job_process_is_stop = None
+    default_read_size = 10240*100
+
+    @classmethod
+    def stop_job(cls):
+        if cls.current_job_process:
+            try:
+                cls.current_job_process.terminate()
+            except:
+                pass
+            cls.current_job_process_is_stop = True
+            time.sleep(0.2)
+            return True
+
+        return False
+
+    @classmethod
+    def run_job(cls, args):
+
+        cls.current_job_process = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, bufsize=cls.default_read_size)
+        size = 0
+
+        def is_avail():
+            if six.PY2:
+                return cls.current_job_process.poll() != 0
+            else:
+                return cls.current_job_process.stdout.peek()
+            fi
+
+        while True:
+            if cls.current_job_process and is_avail() and not cls.current_job_process_is_stop:
+                cls.current_job_process.stdout.read(cls.default_read_size)
+                size+=cls.default_read_size
+                SubProcessFeed.set_buffer_size(size)
+            else:
+                cls.stop_job()
+                time.sleep(0.2)
+                SubProcessFeed.set_buffer_size(None)
+                break
+
+
+class StdinJob:
+    current_job_process = None
+    current_job_process_is_stop = None
+    default_read_size = 10240*100
+
+    @classmethod
+    def stop_job(cls):
+        cls.current_job_process_is_stop = True
+        time.sleep(0.3)
+        return True
+
+    @classmethod
+    def run_job(cls):
+        size = 0
+        stdin_handler = sys.stdin.read if six.PY2 else sys.stdin.buffer.read
+
+        while not cls.current_job_process_is_stop:
+            i, _, _ = select.select( [sys.stdin], [], [])
+
+            if not i:
+                time.sleep(0.03)
+                continue
+
+            try:
+                data = stdin_handler(cls.default_read_size)
+            except:
+                data = None
+
+            if data:
+                size+=cls.default_read_size
+                StdinFeed.set_buffer_size(size)
+
+            else:
+                cls.stop_job()
+                time.sleep(0.2)
+                StdinFeed.set_buffer_size(None)
+                break
+
+
+class SimulatedFeed:
+
+    @classmethod
+    def simulated_feed(cls, data):
+        total = 0
+        adjusted_data = [0]
+        for d in data:
+            d = int(d)
+            adjusted_data.append(d + total)
+            total += d
+
+        def simfn(data=adjusted_data):
+            if data:
+                return long(data.pop(0))
+            return None
+        return simfn
 
 class SimulatedTime:
     def __init__(self, start):
@@ -774,9 +933,7 @@ def console():
         sys.stderr.write(__usage__)
         if not URWID_IMPORTED:
             sys.stderr.write(__urwid_info__)
-        sys.stderr.write("""
-Python Version: %d.%d
-Urwid >= 0.9.9.1 detected: %s  UTF-8 encoding detected: %s
+        sys.stderr.write("""\nPython Version: %d.%d\n""""""Urwid >= 0.9.9.1 detected: %s\nUTF-8 encoding detected: %s\n
 """ % (sys.version_info[:2] + (["NO","yes"][URWID_IMPORTED],) +
         (["NO","yes"][URWID_UTF8],)))
         return
@@ -814,6 +971,23 @@ def do_display(cols, urwid_ui, exit_on_complete, num_colors, shiny_colors):
     mg.main(num_colors)
 
 
+class SubProcessTap:
+    def __init__(self, cmd):
+        self.ftype = 'subprocess'
+        self.cmd = SubProcessFeed.set_command(cmd)
+        self.feed = SubProcessFeed.file_size_feed()
+        self.wait = False
+
+    def report_zero(self):
+        self.wait = False
+
+    def description(self):
+        return "Sub process"
+
+    def wait_creation(self):
+        return
+
+
 class FileTap:
     def __init__(self, name):
         self.ftype = 'file'
@@ -841,33 +1015,44 @@ class FileTap:
             while not os.path.exists(self.file_name):
                 time.sleep(1)
 
+
+class StdinTap:
+    def __init__(self):
+        self.ftype = 'stdin'
+        self.feed = StdinFeed.file_size_feed()
+        self.wait = False
+
+    def report_zero(self):
+        self.wait = False
+
+    def description(self):
+        return "Pipe/Stdin"
+
+    def wait_creation(self):
+        return False
+
+
 class NetworkTap:
     def __init__(self, rxtx, interface):
         self.ftype = rxtx
         self.interface = interface
-        self.feed = network_feed(interface, rxtx)
+        self.feed = NetworkFeed.network_feed(interface, rxtx)
 
     def description(self):
         return self.ftype+": "+self.interface
 
     def wait_creation(self):
-        if self.feed() is None:
-            sys.stdout.write("Waiting for network statistics from "
-                "interface '%s'...\n" % self.interface)
-            while self.feed() == None:
-                time.sleep(1)
-
+        if self.feed() is not None:
+            return
+        sys.stdout.write("Waiting for network statistics from interface '%s'...\n" % self.interface)
+        while self.feed() == None:
+            time.sleep(1)
 
 
 def parse_args():
     args = sys.argv[1:]
     tap = None
-    if URWID_UTF8:
-        urwid_ui = 'smoothed'
-    elif URWID_IMPORTED:
-        urwid_ui = 'blocky'
-    else:
-        urwid_ui = False
+
     zero_files = False
     interval_set = False
     exit_on_complete = False
@@ -876,17 +1061,34 @@ def parse_args():
     shiny_colors = None
     cols = []
     taps = []
+    isatty = False
 
     def push_tap(tap, taps):
         if tap is None: return
         taps.append(tap)
+
+    if not sys.stdin.isatty():
+        isatty = True
+        push_tap(tap, taps)
+        tap = StdinTap()
+        urwid_ui = False
+
+    elif URWID_UTF8:
+        urwid_ui = 'smoothed'
+
+    elif URWID_IMPORTED:
+        urwid_ui = 'blocky'
+
+    else:
+        urwid_ui = False
 
     i = 0
     while i < len(args):
         op = args[i]
         if op in ("-h","--help"):
             raise ArgumentError
-        elif op in ("-i","-r","-rx","-t","-tx","-f","-k","-m","-n"):
+
+        elif op in ("-d", "-i","-r","-rx","-t","-tx","-f","-k","-m","-n", '-g'):
             # combine two part arguments with the following argument
             try:
                 if op != "-f": # keep support for -f being optional
@@ -895,6 +1097,7 @@ def parse_args():
                 raise ArgumentError
             push_tap(tap, taps)
             tap = None
+
         elif op == "-S":
             # undocumented simulation option
             simargs = []
@@ -905,24 +1108,37 @@ def parse_args():
             simulate = tap
             if not simulate:
                 simulate = taps[-1]
-            simulate.feed = simulated_feed(simargs)
+            simulate.feed = SimulatedFeed.simulated_feed(simargs)
             global time
             time = SimulatedTime(time.time())
             continue
+
+        elif op[:2] == '-d':
+            push_tap(tap, taps)
+            tap = SubProcessTap(cmd=op[2:])
+
         elif op == "-p":
             # disable urwid ui
             urwid_ui = False
+
+        elif not sys.stdin.isatty():
+            urwid_ui = False
+
         elif op == "-b":
             urwid_ui = 'blocky'
+
         elif op == "-s":
             global readable_speed
             global units_per_second
             readable_speed = readable_speed_bits
             units_per_second = 'bits'
+
         elif op == "-x":
             exit_on_complete = True
+
         elif op == "-z":
             zero_files = True
+
         elif op[:2] == "-k":
             if colors_set: raise ArgumentError
             try:
@@ -951,6 +1167,7 @@ def parse_args():
         elif op == "-l":
             global logarithmic_scale
             logarithmic_scale = False
+
         elif op.startswith("-m"):
             global chart_maximum
             try:
@@ -968,15 +1185,19 @@ def parse_args():
         elif op.startswith("-rx"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[3:])
+
         elif op.startswith("-r"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[2:])
+
         elif op.startswith("-tx"):
             push_tap(tap, taps)
             tap = NetworkTap("TX", op[3:])
+
         elif op.startswith("-t"):
             push_tap(tap, taps)
             tap = NetworkTap("TX", op[2:])
+
         elif op == "-c":
             push_tap(tap, taps)
             if not taps:
@@ -984,8 +1205,10 @@ def parse_args():
             cols.append(taps)
             taps = []
             tap = None
+
         elif tap == None:
             tap = FileTap(op)
+
         elif tap and tap.ftype == 'file':
             try:
                 tap.set_expected_size(op)
@@ -1019,9 +1242,13 @@ def do_simple(feed):
     try:
         spd = Speedometer(6)
         f = feed()
-        if f is None: return
+
+        if f is None:
+            return
+
         spd.update(f)
         time.sleep(INITIAL_DELAY)
+
         while 1:
             f = feed()
             if f is None: return
@@ -1031,8 +1258,10 @@ def do_simple(feed):
             a = spd.speed() # running average
             show(s,c,a)
             time.sleep(INTERVAL_DELAY)
+
     except KeyboardInterrupt:
-        pass
+        SubprocessJob.stop_job()
+        StdinJob.stop_job()
 
 def curve(spd):
     """Try to smooth speed fluctuations"""
@@ -1056,6 +1285,7 @@ def show(s, c, a, out = sys.stdout.write):
     out("  A:" + readable_speed(a))
     out("  (" + graphic_speed(s)+")")
     out('\n')
+    sys.stdout.flush()
 
 
 def do_progress(feed, size, exit_on_complete):
@@ -1079,8 +1309,10 @@ def do_progress(feed, size, exit_on_complete):
             current, expected = fp.progress()
             if exit_on_complete and current >= expected: break
             time.sleep(INTERVAL_DELAY)
+
     except KeyboardInterrupt:
-        pass
+        SubprocessJob.stop_job()
+        StdinJob.stop_job()
 
 
 def wait_all(cols):
