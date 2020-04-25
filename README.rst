@@ -12,11 +12,19 @@ New Changes
 
 1. Python 2.7, 3 is supported now.
 
-2. Use python `psutil` module, instead of /dev/net for maximal compatibility
+2. Use python `psutil` module, instead of /dev/net for maximal compatibility.
 
-3. New -d options, support to measure data from running external shell standard output
+3. New -d options, support to measure data from running external shell standard output.
 
-4. Support data source from `standard input` or `pipe line`
+   * python speedometer.py -d "ls -lR /" 
+
+   * python speedometer.py -d "curl https://download.site/file.iso --output -" 
+
+4. Support data source from `standard input` or `pipe line`, working only for plain text mode.
+
+   * cat /dev/urandom | python speedometer.py 
+
+   * python speedometer.py < /dev/urandom 
 
 
 Screen Shots
