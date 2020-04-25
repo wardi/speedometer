@@ -10,13 +10,14 @@ Measure and display the rate of data across a network connection or data being s
 New Changes
 ------------
 
-1.  Python 2.7, 3 is supported now.
+1. Python 2.7, 3 is supported now.
 
-2.  Use python `psutil` module, instead of /dev/net for maximal compatibility
+2. Use python `psutil` module, instead of /dev/net for maximal compatibility
 
-3.  -d options, support to measure data from running external shell standard output
+3. New -d options, support to measure data from running external shell standard output
 
-4. support data source from `standard input` or `pipe line`
+4. Support data source from `standard input` or `pipe line`
+
 
 Screen Shots
 ------------
