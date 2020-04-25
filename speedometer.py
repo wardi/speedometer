@@ -53,6 +53,7 @@ Options:
   -n chart-minimum            set the minimum bytes/second displayed on
                               the chart (default 32)
   -p                          use original plain-text display (one tap only)
+                              default is Yes if data source is from standard input
   -s                          use bits/s instead of bytes/s
   -x                          exit when files reach their expected size
   -z                          report zero size on files that don't exist
@@ -83,8 +84,8 @@ chart_minimum = 2**5
 chart_maximum = 2**32
 
 if six.PY3:
-    def long(*args,**kwargs):
-        return int(*args,**kwargs)
+    def long(*args, **kwargs):
+        return int(*args, **kwargs)
 
 graph_scale = None
 def update_scale():
@@ -279,8 +280,8 @@ class MultiGraphDisplay(object):
     def unhandled_input(self, key):
         "Exit on Q or ESC"
         if key in ('q', 'Q', 'esc'):
-            SubprocessJob.stop_job()
-            StdinJob.stop_job()
+            SubprocessJobQueue.stop_all_job()
+            StdinJobQueue.stop_all_job()
             raise urwid.ExitMainLoop()
 
     def update_callback(self, *args):
@@ -454,7 +455,7 @@ class SpeedGraph:
         for i in range(left+max(0, ldist-pad),len(l)-rdist+1):
             li = l[i]
             if li == 0: continue
-            if i and l[i-1] != None and l[i-1]>=li: continue
+            if i and l[i-1] is not None and l[i-1]>=li: continue
             if li is None or l[i+1]>li: continue
             highs.append((li, -i))
 
@@ -635,125 +636,153 @@ class NetworkFeed:
 
 
 class SubProcessFeed:
-    buffer_current_size = 1
-    is_running = False
-    cmd = None
 
-    @classmethod
-    def stdinfn(cls, *args, **kwargs):
-        if cls.is_running:
-            return cls.buffer_current_size
+    def __init__(self, cmd=None):
+        self.buffer_current_size = 1
+        self.is_running = False
+        self.cmd = cmd
+
+    def stdinfn(self, *args, **kwargs):
+        if self.is_running:
+            return self.buffer_current_size
         else:
-            cls.is_running = True
-            cls.thread = threading.Thread(target=SubprocessJob.run_job, args=(cls.cmd ,))
-            cls.thread.start()
+            self.is_running = True
+            self.sub_process_job = SubprocessJob(feed=self)
+            self.thread = threading.Thread(target=self.sub_process_job.run_job, args=(self.cmd ,))
+            self.thread.start()
             return 0
 
-    @classmethod
-    def file_size_feed(cls):
-        return cls.stdinfn
+    def file_size_feed(self):
+        return self.stdinfn
 
     @classmethod
-    def set_command(cls, cmd):
-        cls.cmd = cmd
+    def set_command(self, cmd):
+        self.cmd = cmd
 
-    @classmethod
-    def set_buffer_size(cls, size):
-        cls.buffer_current_size = size
+    def set_buffer_size(self, size):
+        self.buffer_current_size = size
 
-    @classmethod
-    def get_buffer_size(cls):
-        return cls.buffer_current_size
+    def get_buffer_size(self):
+        return self.buffer_current_size
 
 
 class StdinFeed:
-    buffer_current_size = 0
-    is_running = False
 
-    @classmethod
-    def stdinfn(cls, *args, **kwargs):
-        if cls.is_running:
-            return cls.buffer_current_size
+    def __init__(self):
+        self.buffer_current_size = 0
+        self.is_running = False
+
+    def stdinfn(self, *args, **kwargs):
+        if self.is_running:
+            return self.buffer_current_size
         else:
-            cls.is_running = True
-            cls.thread = threading.Thread(target=StdinJob.run_job)
-            cls.thread.start()
+            self.is_running = True
+            self.stdin_job = StdinJob(feed=self)
+            self.thread = threading.Thread(target=self.stdin_job.run_job)
+            self.thread.start()
             return 0
 
-    @classmethod
-    def file_size_feed(cls):
-        return cls.stdinfn
+    def file_size_feed(self):
+        return self.stdinfn
+
+    def set_buffer_size(self, size):
+        self.buffer_current_size = size
+
+    def get_buffer_size(self):
+        return self.buffer_current_size
+
+
+class SubprocessJobQueue:
+    job_list = []
 
     @classmethod
-    def set_buffer_size(cls, size):
-        cls.buffer_current_size = size
+    def add_job(cls, id):
+        cls.job_list.append(id)
 
     @classmethod
-    def get_buffer_size(cls):
-        return cls.buffer_current_size
-
+    def stop_all_job(cls):
+        for item in cls.job_list:
+            item.stop_job()
 
 class SubprocessJob:
-    current_job_process = None
-    current_job_process_is_stop = None
-    default_read_size = 10240*100
 
-    @classmethod
-    def stop_job(cls):
-        if cls.current_job_process:
+    def __init__(self, feed):
+        self.current_job_process = None
+        self.current_job_process_is_stop = None
+        self.default_read_size = 10240*100
+        self.feed = feed
+        SubprocessJobQueue.add_job(self)
+
+    def stop_job(self):
+        if self.current_job_process:
             try:
-                cls.current_job_process.terminate()
+                self.current_job_process.terminate()
             except:
                 pass
-            cls.current_job_process_is_stop = True
+            self.current_job_process_is_stop = True
             time.sleep(0.2)
             return True
 
         return False
 
-    @classmethod
-    def run_job(cls, args):
+    def run_job(self, args):
 
-        cls.current_job_process = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, bufsize=cls.default_read_size)
+        self.current_job_process = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, bufsize=self.default_read_size)
+
+
         size = 0
 
         def is_avail():
             if six.PY2:
-                return cls.current_job_process.poll() != 0
+                return self.current_job_process.poll() != 0
             else:
-                return cls.current_job_process.stdout.peek()
+                return self.current_job_process.stdout.peek()
             fi
 
         while True:
-            if cls.current_job_process and is_avail() and not cls.current_job_process_is_stop:
-                cls.current_job_process.stdout.read(cls.default_read_size)
-                size+=cls.default_read_size
-                SubProcessFeed.set_buffer_size(size)
+            if self.current_job_process and is_avail() and not self.current_job_process_is_stop:
+                self.current_job_process.stdout.read(self.default_read_size)
+                size+= self.default_read_size
+                self.feed.set_buffer_size(size)
             else:
-                cls.stop_job()
+                self.stop_job()
                 time.sleep(0.2)
-                SubProcessFeed.set_buffer_size(None)
+                self.feed.set_buffer_size(None)
                 break
 
 
-class StdinJob:
-    current_job_process = None
-    current_job_process_is_stop = None
-    default_read_size = 10240*100
+class StdinJobQueue:
+    job_list = []
 
     @classmethod
-    def stop_job(cls):
-        cls.current_job_process_is_stop = True
+    def add_job(cls, id):
+        cls.job_list.append(id)
+
+    @classmethod
+    def stop_all_job(cls):
+        for item in cls.job_list:
+            item.stop_job()
+
+class StdinJob:
+
+    def __init__(self, feed):
+        self.current_job_process = None
+        self.current_job_process_is_stop = None
+        self.default_read_size = 10240*100
+        self.feed = feed
+        StdinJobQueue.add_job(self)
+
+    def stop_job(self):
+        self.current_job_process_is_stop = True
         time.sleep(0.3)
         return True
 
-    @classmethod
-    def run_job(cls):
+    def run_job(self):
         size = 0
         stdin_handler = sys.stdin.read if six.PY2 else sys.stdin.buffer.read
 
-        while not cls.current_job_process_is_stop:
+        while not self.current_job_process_is_stop:
             i, _, _ = select.select( [sys.stdin], [], [])
 
             if not i:
@@ -761,18 +790,18 @@ class StdinJob:
                 continue
 
             try:
-                data = stdin_handler(cls.default_read_size)
+                data = stdin_handler(self.default_read_size)
             except:
                 data = None
 
             if data:
-                size+=cls.default_read_size
-                StdinFeed.set_buffer_size(size)
+                size+=self.default_read_size
+                self.feed.set_buffer_size(size)
 
             else:
-                cls.stop_job()
+                self.stop_job()
                 time.sleep(0.2)
-                StdinFeed.set_buffer_size(None)
+                self.feed.set_buffer_size(None)
                 break
 
 
@@ -972,10 +1001,9 @@ def do_display(cols, urwid_ui, exit_on_complete, num_colors, shiny_colors):
 
 
 class SubProcessTap:
-    def __init__(self, cmd):
+    def __init__(self, cmd=None):
         self.ftype = 'subprocess'
-        self.cmd = SubProcessFeed.set_command(cmd)
-        self.feed = SubProcessFeed.file_size_feed()
+        self.feed = SubProcessFeed(cmd=cmd).file_size_feed()
         self.wait = False
 
     def report_zero(self):
@@ -1019,7 +1047,7 @@ class FileTap:
 class StdinTap:
     def __init__(self):
         self.ftype = 'stdin'
-        self.feed = StdinFeed.file_size_feed()
+        self.feed = StdinFeed().file_size_feed()
         self.wait = False
 
     def report_zero(self):
@@ -1088,7 +1116,7 @@ def parse_args():
         if op in ("-h","--help"):
             raise ArgumentError
 
-        elif op in ("-d", "-i","-r","-rx","-t","-tx","-f","-k","-m","-n", '-g'):
+        elif op in ("-d", "-i", "-r", "-rx", "-t", "-tx", "-f", "-k", "-m", "-n"):
             # combine two part arguments with the following argument
             try:
                 if op != "-f": # keep support for -f being optional
@@ -1115,6 +1143,7 @@ def parse_args():
 
         elif op[:2] == '-d':
             push_tap(tap, taps)
+            process_tap = SubProcessTap(cmd=op[2:])
             tap = SubProcessTap(cmd=op[2:])
 
         elif op == "-p":
@@ -1260,8 +1289,8 @@ def do_simple(feed):
             time.sleep(INTERVAL_DELAY)
 
     except KeyboardInterrupt:
-        SubprocessJob.stop_job()
-        StdinJob.stop_job()
+        SubprocessJobQueue.stop_all_job()
+        StdinJobQueue.stop_all_job()
 
 def curve(spd):
     """Try to smooth speed fluctuations"""
