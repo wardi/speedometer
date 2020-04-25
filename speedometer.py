@@ -23,6 +23,8 @@ import math
 import re
 import psutil
 import six
+import threading
+import subprocess
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -33,6 +35,7 @@ Taps:
   -f filename [size]          display download speed [with progress bar]
   -r network-interface        display bytes received on network-interface
   -t network-interface        display bytes transmitted on network-interface
+  -d command                  display bytes received from running shell command standard output
   -c                          start a new column for following tap arguments
 
 Options:
@@ -260,8 +263,7 @@ class MultiGraphDisplay(object):
 
 
     def main(self, num_colors):
-        self.loop = urwid.MainLoop(self.top, palette=self.palette,
-            unhandled_input=self.unhandled_input)
+        self.loop = urwid.MainLoop(self.top, palette=self.palette, unhandled_input=self.unhandled_input)
         self.loop.screen.set_terminal_properties(colors=num_colors)
 
         try:
@@ -620,6 +622,51 @@ def network_feed(device,rxtx):
 
     return networkfn
 
+
+class PipeStdinSize:
+    buffer_current_size = 1
+    is_opening = False
+    cmd = None
+
+    @classmethod
+    def stdinfn(cls, *args, **kwargs):
+        if cls.is_opening:
+            return cls.buffer_current_size
+        else:
+            cls.is_opening = True
+            cls.thread_1 = threading.Thread(target=run_job, args=(cls.cmd,))
+            cls.thread_1.start()
+            return 0
+
+    @classmethod
+    def file_size_feed(cls):
+        return cls.stdinfn
+
+    @classmethod
+    def set_command(cls, cmd):
+        cls.cmd = cmd
+
+    @classmethod
+    def set_buffer_size(cls, size):
+        cls.buffer_current_size = size
+
+    @classmethod
+    def get_buffer_size(cls):
+        return cls.buffer_current_size
+
+
+def run_job(args):
+    process = subprocess.Popen(args, shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1024*100)
+    size=0
+    while process.stdout.peek():
+        process.stdout.read(1024*100)
+        size+=1024*100
+        PipeStdinSize.set_buffer_size(size)
+    else:
+        process.terminate()
+        time.sleep(1)
+        PipeStdinSize.buffer_current_size = None
+
 def simulated_feed(data):
     total = 0
     adjusted_data = [0]
@@ -814,6 +861,23 @@ def do_display(cols, urwid_ui, exit_on_complete, num_colors, shiny_colors):
     mg.main(num_colors)
 
 
+class RunTap:
+    def __init__(self, cmd):
+        self.ftype = 'run'
+        self.cmd = PipeStdinSize.set_command(cmd)
+        self.feed = PipeStdinSize.file_size_feed()
+        self.wait = False
+
+    def report_zero(self):
+        self.wait = False
+
+    def description(self):
+        return "Run: Cmd"
+
+    def wait_creation(self):
+        return
+
+
 class FileTap:
     def __init__(self, name):
         self.ftype = 'file'
@@ -858,7 +922,6 @@ class NetworkTap:
                 time.sleep(1)
 
 
-
 def parse_args():
     args = sys.argv[1:]
     tap = None
@@ -886,7 +949,8 @@ def parse_args():
         op = args[i]
         if op in ("-h","--help"):
             raise ArgumentError
-        elif op in ("-i","-r","-rx","-t","-tx","-f","-k","-m","-n"):
+
+        elif op in ("-d", "-i","-r","-rx","-t","-tx","-f","-k","-m","-n", '-g'):
             # combine two part arguments with the following argument
             try:
                 if op != "-f": # keep support for -f being optional
@@ -895,6 +959,7 @@ def parse_args():
                 raise ArgumentError
             push_tap(tap, taps)
             tap = None
+
         elif op == "-S":
             # undocumented simulation option
             simargs = []
@@ -909,20 +974,31 @@ def parse_args():
             global time
             time = SimulatedTime(time.time())
             continue
+
+        elif op[:2] == '-d':
+            push_tap(tap, taps)
+            tap = RunTap(cmd=op[2:])
+
+
         elif op == "-p":
             # disable urwid ui
             urwid_ui = False
+
         elif op == "-b":
             urwid_ui = 'blocky'
+
         elif op == "-s":
             global readable_speed
             global units_per_second
             readable_speed = readable_speed_bits
             units_per_second = 'bits'
+
         elif op == "-x":
             exit_on_complete = True
+
         elif op == "-z":
             zero_files = True
+
         elif op[:2] == "-k":
             if colors_set: raise ArgumentError
             try:
@@ -951,6 +1027,7 @@ def parse_args():
         elif op == "-l":
             global logarithmic_scale
             logarithmic_scale = False
+
         elif op.startswith("-m"):
             global chart_maximum
             try:
@@ -968,15 +1045,19 @@ def parse_args():
         elif op.startswith("-rx"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[3:])
+
         elif op.startswith("-r"):
             push_tap(tap, taps)
             tap = NetworkTap("RX", op[2:])
+
         elif op.startswith("-tx"):
             push_tap(tap, taps)
             tap = NetworkTap("TX", op[3:])
+
         elif op.startswith("-t"):
             push_tap(tap, taps)
             tap = NetworkTap("TX", op[2:])
+
         elif op == "-c":
             push_tap(tap, taps)
             if not taps:
@@ -984,8 +1065,10 @@ def parse_args():
             cols.append(taps)
             taps = []
             tap = None
+
         elif tap == None:
             tap = FileTap(op)
+
         elif tap and tap.ftype == 'file':
             try:
                 tap.set_expected_size(op)
