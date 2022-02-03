@@ -25,8 +25,12 @@ import subprocess
 import select
 import pkg_resources
 
+try:
+    __version__ = pkg_resources.get_distribution('speedometer').version
+except pkg_resources.DistributionNotFound:
+    # Not installed yet.
+    __version__ = 'develop'
 
-__version__ = pkg_resources.get_distribution('speedometer').version
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
 tap must be entered.  -c starts a new column, otherwise taps are piled
