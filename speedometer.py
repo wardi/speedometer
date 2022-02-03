@@ -22,7 +22,6 @@ import string
 import math
 import re
 import psutil
-import six
 import threading
 import subprocess
 import select
@@ -83,9 +82,6 @@ units_per_second = 'bytes'
 chart_minimum = 2**5
 chart_maximum = 2**32
 
-if six.PY3:
-    def long(*args, **kwargs):
-        return int(*args, **kwargs)
 
 graph_scale = None
 def update_scale():
@@ -492,9 +488,9 @@ def delta_to_speed(delta):
     """delta_to_speed(delta) -> speed in bytes per second"""
     time_passed, byte_increase = delta
     if time_passed <= 0: return 0
-    if long(time_passed*1000) == 0: return 0
+    if int(time_passed*1000) == 0: return 0
 
-    return long(byte_increase*1000)/long(time_passed*1000)
+    return int(byte_increase*1000)/int(time_passed*1000)
 
 
 
@@ -508,7 +504,7 @@ def readable_speed(speed):
     if speed == None or speed < 0: speed = 0
 
     units = "B/s  ", "KiB/s", "MiB/s", "GiB/s", "TiB/s"
-    step = long(1)
+    step = 1
 
     for u in units:
 
@@ -521,7 +517,7 @@ def readable_speed(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * long(1024)
+        step = step * 1024
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -534,7 +530,7 @@ def readable_speed_bits(speed):
 
     speed = speed * 8
     units = "b/s  ", "Kib/s", "Mib/s", "Gib/s", "Tib/s"
-    step = long(1)
+    step = 1
 
     for u in units:
 
@@ -547,7 +543,7 @@ def readable_speed_bits(speed):
         if speed/step < 1024:
             return "%4d " %(speed/step) + u
 
-        step = step * long(1024)
+        step = step * 1024
 
     return "%4d " % (speed/(step/1024)) + units[-1]
 
@@ -630,7 +626,7 @@ class NetworkFeed:
             else:
                 val=psutil.net_io_counters(pernic=True)[device].bytes_sent
 
-            return long(val)
+            return int(val)
 
         return networkfn
 
@@ -734,11 +730,7 @@ class SubprocessJob:
         size = 0
 
         def is_avail():
-            if six.PY2:
-                return self.current_job_process.poll() != 0
-            else:
-                return self.current_job_process.stdout.peek()
-            fi
+            return self.current_job_process.stdout.peek()
 
         while True:
             if self.current_job_process and is_avail() and not self.current_job_process_is_stop:
@@ -780,7 +772,7 @@ class StdinJob:
 
     def run_job(self):
         size = 0
-        stdin_handler = sys.stdin.read if six.PY2 else sys.stdin.buffer.read
+        stdin_handler = sys.stdin.buffer.read
 
         while not self.current_job_process_is_stop:
             i, _, _ = select.select( [sys.stdin], [], [])
@@ -818,7 +810,7 @@ class SimulatedFeed:
 
         def simfn(data=adjusted_data):
             if data:
-                return long(data.pop(0))
+                return int(data.pop(0))
             return None
         return simfn
 
@@ -914,7 +906,7 @@ def time_as_units(seconds):
     # (multiplicative factor, suffix)
     units = (1,"s"), (60,"m"), (60,"h"), (24,"d"), (7,"w"), (52,"y")
 
-    scale = long(1)
+    scale = 1
     topunit = -1
     # find the top unit to use
     for mul, suf in units:
@@ -1024,7 +1016,7 @@ class FileTap:
         self.wait = True
 
     def set_expected_size(self, size):
-        self.expected_size = long(size)
+        self.expected_size = int(size)
         self.ftype = 'file_exp'
 
     def report_zero(self):
@@ -1319,7 +1311,7 @@ def show(s, c, a, out = sys.stdout.write):
 
 def do_progress(feed, size, exit_on_complete):
     try:
-        fp = FileProgress(4, long(size))
+        fp = FileProgress(4, int(size))
         out = sys.stdout.write
 
         f = feed()
@@ -1415,4 +1407,3 @@ if __name__ == "__main__":
         console()
     except KeyboardInterrupt as err:
         pass
-

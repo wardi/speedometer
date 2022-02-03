@@ -11,7 +11,7 @@ Measure and display the rate of data across a network connection or data being s
 New Changes
 ------------
 
-1. Python 2.7, 3 is supported now, mac os x platform is included.
+1. Python 3 is required now, mac os x platform is included.
 
 2. Use python `psutil` module, instead of /dev/net for maximal compatibility.
 
