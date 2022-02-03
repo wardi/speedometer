@@ -22,12 +22,9 @@ from setuptools import setup
 
 import os
 
-import speedometer
-release = speedometer.__version__
-
 setup_d = {
     'name': "Speedometer",
-    'version': release,
+    'version': '2.9',
     'author': "Ian Ward",
     'author_email': "ian@excess.org",
     'url': "http://excess.org/speedometer/",

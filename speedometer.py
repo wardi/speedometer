@@ -13,8 +13,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-__version__ = "2.9"
-
 import time
 import sys
 import os
@@ -25,7 +23,10 @@ import psutil
 import threading
 import subprocess
 import select
+import pkg_resources
 
+
+__version__ = pkg_resources.get_distribution('speedometer').version
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
 tap must be entered.  -c starts a new column, otherwise taps are piled
