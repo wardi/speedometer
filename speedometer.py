@@ -1251,6 +1251,10 @@ def parse_args():
         raise ArgumentError
 
     push_tap(tap, taps)
+
+    if not taps:
+        autodetect_taps(taps)
+
     if not urwid_ui and (len(taps)>1 or cols):
         raise ArgumentError
 
@@ -1263,6 +1267,20 @@ def parse_args():
 
     return cols, urwid_ui, zero_files, exit_on_complete, num_colors, shiny_colors
 
+def autodetect_taps(taps):
+    print("no taps specified, autodetecting... ")
+    prefixes = ["en", "eth", "wl"]
+    f = open('/proc/net/dev')
+    lines = f.readlines()
+    f.close()
+    for l in lines:
+        for p in prefixes:
+            if l.startswith(p):
+                dev = l.split(":")[0]
+                print("found " + dev)
+                taps.append(NetworkTap('RX', dev))
+                taps.append(NetworkTap('TX', dev))
+                break
 
 def do_simple(feed):
     try:
