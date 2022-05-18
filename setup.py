@@ -22,19 +22,16 @@ from setuptools import setup
 
 import os
 
-import speedometer
-release = speedometer.__version__
-
 setup_d = {
     'name': "Speedometer",
-    'version': release,
+    'version': '2.9',
     'author': "Ian Ward",
     'author_email': "ian@excess.org",
     'url': "http://excess.org/speedometer/",
     'scripts': ['speedometer.py'],
     'entry_points': {
         'console_scripts': ['speedometer = speedometer:console'],},
-    'install_requires': ['urwid >= 0.9.9.1'],
+    'install_requires': ['urwid >= 0.9.9.1', 'psutil'],
     'license':"LGPL",
     'keywords':"network bandwidth monitor system speed download file progress console",
     'platforms':"Linux",
@@ -52,12 +49,5 @@ setup_d = {
         ],
      }
 
-try:
-    True
-except:
-    # python 2.1's distutils doesn't understand these:
-    del setup_d['classifiers']
-    del setup_d['download_url']
 
 setup(** setup_d)
-
