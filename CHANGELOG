@@ -1,3 +1,12 @@
+Speedometer 2.9 - 2022-05-24
+
+ * Convert to use Python 3, Python 2 support is dropped.
+
+ * Requires psutil, BSD and macOS X should work now.
+
+ * New option (-d or via pipe) to display bytes received from running shell
+   command's standard output.
+
 
 Speedometer 2.8 - 2011-12-08
 
