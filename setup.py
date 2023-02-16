@@ -28,7 +28,6 @@ setup_d = {
     'author': "Ian Ward",
     'author_email': "ian@excess.org",
     'url': "http://excess.org/speedometer/",
-    'scripts': ['speedometer.py'],
     'entry_points': {
         'console_scripts': ['speedometer = speedometer:console'],},
     'install_requires': ['urwid >= 0.9.9.1', 'psutil'],
