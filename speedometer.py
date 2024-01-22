@@ -16,7 +16,6 @@
 import time
 import sys
 import os
-import string
 import math
 import re
 import psutil
@@ -231,9 +230,9 @@ class MultiGraphDisplay(object):
             l.append(a)
 
         graphs = urwid.Columns([urwid.Pile(a) for a in l], 1)
-        graphs = urwid.AttrWrap(graphs, 'background')
+        graphs = urwid.AttrMap(graphs, 'background')
         title = urwid.Text(" Speedometer "+__version__)
-        title = urwid.AttrWrap(urwid.Filler(title), 'title')
+        title = urwid.AttrMap(urwid.Filler(title), 'title')
         self.top = urwid.Overlay(title, graphs,
             ('fixed left', 5), 17, ('fixed top', 0), 1)
 
@@ -396,8 +395,9 @@ class GraphDisplayProgress(GraphDisplay):
             self.est.set_text(readable_time(e,10))
         return current < expected
 
-class SpeedGraph:
+class SpeedGraph(urwid.Widget):
     def __init__(self, attlist, hatt=None, satt=None):
+        super().__init__()
         if satt is None:
             self.graph = urwid.BarGraph(attlist, hatt)
         else:
