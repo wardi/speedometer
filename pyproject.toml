@@ -1,0 +1,26 @@
+[build-system]
+# Minimum requirements for the build system to execute.
+# PEP 508 specifications for PEP 518.
+requires = [
+    "setuptools >= 61.0.0",
+    "wheel",
+]
+build-backend="setuptools.build_meta"
+
+[project]
+name = "Speedometer"
+version = '2.9'
+description = "Console monitor of the rate of data across a network connection or data being stored in a file"
+requires-python = ">=3.7"
+keywords = ["network", "bandwidth", "monitor", "system", "speed", "download", "file", "progress", "console"]
+license={text="LGPL-2.1-only"}  # Use SPDX classifier
+readme = {file = "README.rst", content-type = "text/x-rst"}
+authors=[{name="Ian Ward", email="ian@excess.org"}]
+dynamic = ["classifiers", "dependencies"]
+
+[project.scripts]
+speedometer = "speedometer:console"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+classifiers = {file = ["classifiers.txt"]}
