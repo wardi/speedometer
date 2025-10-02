@@ -35,6 +35,6 @@ New Changes
 Screen Shots
 ------------
 
-![speedometer screen shot w/ transparent bg](https://excess.org/media/speedometer-transp1.png)
+![speedometer screen shot w/ transparent bg](https://excess.org/images/speedometer-transp1.png)
    
-![speedometer screen shot w/ multiple graphs](https://excess.org/media/speedometer-light16.png)
+![speedometer screen shot w/ multiple graphs](https://excess.org/images/speedometer-light16.png)
