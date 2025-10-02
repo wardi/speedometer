@@ -5,7 +5,7 @@ Speedometer
 
 Measure and display the rate of data across a network connection or data being stored in a file.
 
-* `Speedometer Home Page <http://excess.org/speedometer/>`_
+* [Speedometer Home Page](https://excess.org/speedometer/)
 
 
 New Changes
@@ -35,8 +35,6 @@ New Changes
 Screen Shots
 ------------
 
-.. image:: https://excess.org/media/speedometer-transp1.png
-   :alt: speedometer screen shot w/ transparent bg
-
-.. image:: https://excess.org/media/speedometer-light16.png
-   :alt: speedometer screen shot w/ multiple graphs
+![speedometer screen shot w/ transparent bg](https://excess.org/media/speedometer-transp1.png)
+   
+![speedometer screen shot w/ multiple graphs](https://excess.org/media/speedometer-light16.png)
