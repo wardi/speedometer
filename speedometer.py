@@ -13,23 +13,28 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-import time
-import sys
-import os
-import string
 import math
+import os
 import re
-import psutil
-import threading
-import subprocess
 import select
-import pkg_resources
+import string
+import subprocess
+import sys
+import threading
+import time
+
+import psutil
+
+if sys.version_info[:2] >= (3, 8):
+    from importlib import metadata as importlib_metadata
+else:
+    import importlib_metadata
 
 try:
-    __version__ = pkg_resources.get_distribution('speedometer').version
-except pkg_resources.DistributionNotFound:
+    __version__ = importlib_metadata.version("speedometer")
+except ModuleNotFoundError:
     # Not installed yet.
-    __version__ = 'develop'
+    __version__ = "develop"
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
@@ -87,8 +92,9 @@ units_per_second = 'bytes'
 chart_minimum = 2**5
 chart_maximum = 2**32
 
-
 graph_scale = None
+
+
 def update_scale():
     """
     parse_args has set chart min/max, units_per_second and logarithmic_scale
@@ -128,14 +134,16 @@ def update_scale():
         n += granularity
 
 
-
 def graph_min():
     return math.log(chart_minimum,2) if logarithmic_scale else chart_minimum
+
 
 def graph_max():
     return math.log(chart_maximum,2) if logarithmic_scale else chart_maximum
 
+
 def graph_range(): return graph_max() - graph_min()
+
 
 def graph_lines_captions():
     s = graph_scale
@@ -146,7 +154,9 @@ def graph_lines_captions():
         s = [(x - delta, cap) for x, cap in s]
     return list(reversed(s))
 
+
 def graph_lines(): return [x[0] for x in graph_lines_captions()]
+
 
 URWID_IMPORTED = False
 URWID_UTF8 = False
@@ -212,7 +222,7 @@ class Speedometer:
 class EndOfData(Exception):
     pass
 
-class MultiGraphDisplay(object):
+class MultiGraphDisplay:
     def __init__(self, cols, urwid_ui, exit_on_complete, shiny_colors):
         smoothed = urwid_ui == "smoothed"
         self.displays = []
@@ -346,7 +356,7 @@ class GraphDisplay(urwid.WidgetWrap):
         self.spd = Speedometer(6)
         self.feed = tap.feed
         self.description = tap.description()
-        super(GraphDisplay, self).__init__(self.top)
+        super().__init__(self.top)
 
     def update_readings(self):
         f = self.feed()
@@ -1367,7 +1377,7 @@ class ShinyMap(urwid.WidgetPlaceholder):
     def __init__(self, w, colors):
         assert colors in (88, 256)
         self._colors = colors
-        super(ShinyMap, self).__init__(w)
+        super().__init__(w)
         self._shiny_cache = []
         self._shiny_cache_maxrow = None
 
@@ -1402,7 +1412,7 @@ class ShinyMap(urwid.WidgetPlaceholder):
 
     def render(self, size, focus=False):
         maxcol, maxrow = size
-        canv = super(ShinyMap, self).render(size, focus)
+        canv = super().render(size, focus)
         self._rebuild_shiny_cache(maxrow)
         slivers = []
         y = 0
@@ -1413,7 +1423,6 @@ class ShinyMap(urwid.WidgetPlaceholder):
             c.fill_attr_apply(amap)
             slivers.append((c, None, False))
         return urwid.CanvasCombine(slivers)
-
 
 
 if __name__ == "__main__":
