@@ -23,13 +23,23 @@ import psutil
 import threading
 import subprocess
 import select
-import pkg_resources
 
+# Handle pkg_resources deprecation in setuptools >= 82.0.0
 try:
-    __version__ = pkg_resources.get_distribution('speedometer').version
-except pkg_resources.DistributionNotFound:
-    # Not installed yet.
-    __version__ = 'develop'
+    from importlib.metadata import version, PackageNotFoundError
+    try:
+        __version__ = version('speedometer')
+    except PackageNotFoundError:
+        # Not installed yet.
+        __version__ = 'develop'
+except ImportError:
+    # Fall back to pkg_resources for older Python/setuptools
+    import pkg_resources
+    try:
+        __version__ = pkg_resources.get_distribution('speedometer').version
+    except pkg_resources.DistributionNotFound:
+        # Not installed yet.
+        __version__ = 'develop'
 
 __usage__ = """Usage: speedometer [options] tap [[-c] tap]...
 Monitor network traffic or speed/progress of a file transfer.  At least one
