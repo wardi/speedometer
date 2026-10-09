@@ -1233,7 +1233,7 @@ def parse_args():
             tap = None
 
         elif tap == None:
-            tap = FileTap(op)
+            push_tap(FileTap(op), taps)
 
         elif tap and tap.ftype == 'file':
             try:
